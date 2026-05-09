@@ -1,0 +1,6 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+
+# Local profile overrides can be added here.
