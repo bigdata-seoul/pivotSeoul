@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from routers import api_v1
+
 app = FastAPI(
     title="Pivot Seoul API",
     version="0.1.0",
@@ -14,6 +16,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(api_v1)
 
 
 @app.get("/health")
