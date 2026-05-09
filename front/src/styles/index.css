@@ -5,8 +5,8 @@
 /* ── Pivot Seoul — Global styles ── */
 
 :root {
-  /* Increase overall text scale by roughly +4px from default 16px */
-  --ui-font-size-base: 20px;
+  /* Increase overall text scale more aggressively */
+  --ui-font-size-base: 22px;
 }
 
 html, body {

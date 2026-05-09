@@ -44,6 +44,7 @@ export function OnboardingFamily() {
   const monthlySurplus = profile.monthlyIncome - profile.monthlyHousing - profile.monthlyLiving - profile.childcareCost;
   const housingRatio = Math.round((profile.monthlyHousing / profile.monthlyIncome) * 100);
   const childcareRatio = Math.round((profile.childcareCost / profile.monthlyIncome) * 100);
+  const progressPct = (step / (steps.length - 1)) * 100;
 
   return (
     <div className="h-full flex flex-col p-4 md:p-6 w-full">
@@ -62,21 +63,28 @@ export function OnboardingFamily() {
       </div>
 
       {/* Step indicators */}
-      <div className="flex items-center gap-0 mb-4 shrink-0">
+      <div className="relative flex items-start gap-0 mb-9 mt-1 shrink-0 w-full">
+        <div
+          className="absolute top-6 left-6 right-6 h-1 rounded-full"
+          style={{ background: c.borderSoft }}
+        />
+        <div
+          className="absolute top-6 left-6 h-1 rounded-full transition-all duration-300"
+          style={{ width: `calc((100% - 3rem) * ${progressPct / 100})`, background: c.success }}
+        />
         {steps.map((s, i) => {
           const Icon = s.icon;
           const isDone = i < step;
           const isActive = i === step;
           return (
-            <div key={s.label} className="flex items-center flex-1">
-              <div className="flex flex-col items-center gap-1">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300"
+            <div key={s.label} className={`relative z-10 flex items-start flex-1 min-w-0 ${i === 0 ? 'justify-start' : i === steps.length - 1 ? 'justify-end' : 'justify-center'}`}>
+              <div className="relative z-10 flex flex-col items-center shrink-0 w-12">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300"
                   style={{ background: isDone ? c.success : isActive ? '#F59E0B' : c.badgeBg, color: isDone || isActive ? 'white' : c.textMuted, boxShadow: isActive ? '0 0 15px rgba(245,158,11,0.4)' : 'none' }}>
-                  {isDone ? <CheckCircle2 size={14} /> : <Icon size={14} />}
+                  {isDone ? <CheckCircle2 size={18} /> : <Icon size={18} />}
                 </div>
-                <span style={{ color: isActive ? '#F59E0B' : isDone ? c.success : c.textMuted, fontSize: '0.68rem' }}>{s.label}</span>
+                <span className="absolute top-14 whitespace-nowrap text-center" style={{ color: isActive ? '#F59E0B' : isDone ? c.success : c.textMuted, fontSize: '0.9rem', fontWeight: 600, lineHeight: 1.2 }}>{s.label}</span>
               </div>
-              {i < steps.length - 1 && <div className="flex-1 h-0.5 mx-2 mb-4 rounded-full" style={{ background: isDone ? c.success : c.borderSoft }} />}
             </div>
           );
         })}
