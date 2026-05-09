@@ -1,0 +1,17 @@
+.DS_Store
+
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+
+.expo/
+dist/
+web-build/
+
+.gradle/
+build/
+out/
+
+.idea/
+*.iml
