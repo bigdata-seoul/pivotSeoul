@@ -4,9 +4,15 @@
 
 /* ── Pivot Seoul — Global styles ── */
 
+:root {
+  /* Increase overall text scale by roughly +4px from default 16px */
+  --ui-font-size-base: 20px;
+}
+
 html, body {
   height: 100%;
   width: 100%;
+  font-size: var(--ui-font-size-base);
   margin: 0;
   padding: 0;
   overflow: hidden;
