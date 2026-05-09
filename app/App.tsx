@@ -41,7 +41,7 @@ export default function App() {
       </View>
 
       <View style={styles.helper}>
-        <Text style={styles.helperText}>front-copy dev 서버 주소를 입력해 WebView로 실행합니다.</Text>
+        <Text style={styles.helperText}>front dev 서버 주소를 입력해 WebView로 실행합니다.</Text>
       </View>
 
       <View style={styles.webviewWrap}>

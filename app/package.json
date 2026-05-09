@@ -6,10 +6,7 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web",
-    "front:install": "npm --prefix ./front-copy install",
-    "front:dev": "npm --prefix ./front-copy run dev",
-    "front:build": "npm --prefix ./front-copy run build"
+    "web": "expo start --web"
   },
   "dependencies": {
     "expo": "~54.0.33",
