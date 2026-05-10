@@ -3,4 +3,11 @@ spring:
     activate:
       on-profile: local
 
-# Local profile overrides can be added here.
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/pivotseoul}
+    username: ${SPRING_DATASOURCE_USERNAME:pivotseoul}
+    password: ${SPRING_DATASOURCE_PASSWORD:pivotseoul}
+
+  jpa:
+    hibernate:
+      ddl-auto: update

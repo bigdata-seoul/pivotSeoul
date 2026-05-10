@@ -1,0 +1,2216 @@
+openapi: 3.0.3
+
+info:
+  title: Pivot Seoul API
+  description: |
+    서울시 공공데이터 기반 생애 선택 시뮬레이션 서비스 API 명세서입니다.
+
+    사용자 기능:
+    - 생애 단계 선택
+    - 온보딩 입력
+    - A/B 시나리오 설정
+    - 시뮬레이션 실행
+    - 임계점 / Red Zone / 회복 레버 / 이번 주 할 일 조회
+
+    관리자 기능:
+    - 관리자 로그인
+    - 데이터셋 관리
+    - 콘텐츠 관리
+    - 공지 / 점검 관리
+    - 로그 / 오류 관리
+    - 사용 현황 모니터링
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local Server
+  - url: https://api.pivot-seoul.com
+    description: Production Server
+
+tags:
+  - name: Home
+    description: 홈 / 서비스 기본 정보
+  - name: LifeStage
+    description: 생애 단계
+  - name: District
+    description: 자치구
+  - name: SimulationSession
+    description: 시뮬레이션 세션
+  - name: Onboarding
+    description: 온보딩 입력
+  - name: Scenario
+    description: A/B 시나리오
+  - name: SimulationResult
+    description: 시뮬레이션 결과
+  - name: Threshold
+    description: 임계점 / Red Zone
+  - name: Recommendation
+    description: 회복 레버 / 이번 주 할 일
+  - name: Dataset
+    description: 데이터셋 / 데이터 근거
+  - name: Content
+    description: 콘텐츠 / FAQ / 외부 링크
+  - name: AdminAuth
+    description: 관리자 인증
+  - name: Admin
+    description: 관리자 대시보드 / 계정
+  - name: AdminDataset
+    description: 관리자 데이터셋 관리
+  - name: AdminContent
+    description: 관리자 콘텐츠 관리
+  - name: Analytics
+    description: 사용 현황 모니터링
+  - name: Log
+    description: 로그 / 오류 / AI 이상 탐지
+
+paths:
+  /api/home:
+    get:
+      tags:
+        - Home
+      summary: 홈 화면 정보 조회
+      description: 홈 화면에 필요한 서비스 문구, 생애 단계 카드, 활성 공지를 조회합니다.
+      responses:
+        '200':
+          description: 홈 정보 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseUserHomeResponse'
+
+  /api/life-stages:
+    get:
+      tags:
+        - LifeStage
+      summary: 생애 단계 목록 조회
+      description: 청년기, 신혼·출산기, 노년기 목록을 조회합니다.
+      responses:
+        '200':
+          description: 생애 단계 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseLifeStageListResponse'
+
+  /api/life-stages/{code}:
+    get:
+      tags:
+        - LifeStage
+      summary: 생애 단계 상세 조회
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: 생애 단계 코드
+          schema:
+            $ref: '#/components/schemas/LifeStageCode'
+          example: YOUTH
+      responses:
+        '200':
+          description: 생애 단계 상세 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseLifeStageDetailResponse'
+
+  /api/districts:
+    get:
+      tags:
+        - District
+      summary: 서울시 자치구 목록 조회
+      responses:
+        '200':
+          description: 자치구 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseDistrictListResponse'
+
+  /api/districts/{districtCode}:
+    get:
+      tags:
+        - District
+      summary: 자치구 상세 조회
+      parameters:
+        - name: districtCode
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "11710"
+      responses:
+        '200':
+          description: 자치구 상세 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseDistrictResponse'
+
+  /api/simulation-sessions:
+    post:
+      tags:
+        - SimulationSession
+      summary: 시뮬레이션 세션 생성
+      description: 생애 단계 선택 후 시뮬레이션 세션을 생성합니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+            examples:
+              youth:
+                summary: 청년기 세션 생성
+                value:
+                  lifeStageCode: YOUTH
+              family:
+                summary: 신혼·출산기 세션 생성
+                value:
+                  lifeStageCode: FAMILY
+      responses:
+        '201':
+          description: 세션 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSessionResponse'
+
+  /api/simulation-sessions/{sessionId}:
+    get:
+      tags:
+        - SimulationSession
+      summary: 시뮬레이션 세션 조회
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: 세션 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSessionResponse'
+
+  /api/simulation-sessions/{sessionId}/summary:
+    get:
+      tags:
+        - SimulationSession
+      summary: 입력값 확인 화면 요약 조회
+      description: 온보딩, 시나리오 A/B 설정값을 결과 실행 전 요약합니다.
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: 세션 요약 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSessionSummaryResponse'
+
+  /api/simulation-sessions/{sessionId}/onboarding:
+    post:
+      tags:
+        - Onboarding
+      summary: 온보딩 입력값 저장
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOnboardingRequest'
+            examples:
+              youth:
+                summary: 청년기 온보딩
+                value:
+                  lifeStageCode: YOUTH
+                  answers:
+                    - questionKey: current_district_code
+                      answerValue: "11710"
+                      valueType: STRING
+                    - questionKey: target_job
+                      answerValue: "백엔드 개발자"
+                      valueType: STRING
+                    - questionKey: skill_level
+                      answerValue: "BEGINNER"
+                      valueType: STRING
+                    - questionKey: available_learning_hours_week
+                      answerValue: "10"
+                      valueType: NUMBER
+              family:
+                summary: 신혼·출산기 온보딩
+                value:
+                  lifeStageCode: FAMILY
+                  answers:
+                    - questionKey: current_district_code
+                      answerValue: "11710"
+                      valueType: STRING
+                    - questionKey: household_type
+                      answerValue: "COUPLE_CHILD"
+                      valueType: STRING
+                    - questionKey: child_age
+                      answerValue: "2"
+                      valueType: NUMBER
+                    - questionKey: return_to_work_month
+                      answerValue: "6"
+                      valueType: NUMBER
+      responses:
+        '201':
+          description: 온보딩 저장 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseOnboardingSummaryResponse'
+
+    get:
+      tags:
+        - Onboarding
+      summary: 온보딩 입력값 조회
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: 온보딩 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseOnboardingSummaryResponse'
+
+    patch:
+      tags:
+        - Onboarding
+      summary: 온보딩 입력값 수정
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOnboardingRequest'
+      responses:
+        '200':
+          description: 온보딩 수정 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseOnboardingSummaryResponse'
+
+  /api/simulation-sessions/{sessionId}/scenarios:
+    post:
+      tags:
+        - Scenario
+      summary: 시나리오 생성
+      description: 현재 조건 또는 비교 조건 시나리오를 생성합니다.
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateScenarioRequest'
+            examples:
+              current:
+                summary: 현재 조건 시나리오
+                value:
+                  scenarioType: CURRENT
+                  title: 현재 조건
+                  currentDistrictCode: "11710"
+                  compareDistrictCode: null
+                  variables:
+                    - variableKey: monthly_income
+                      variableValue: "5000000"
+                      valueType: NUMBER
+                    - variableKey: monthly_housing_cost
+                      variableValue: "1800000"
+                      valueType: NUMBER
+              compare:
+                summary: 비교 조건 시나리오
+                value:
+                  scenarioType: COMPARE
+                  title: 강동구로 이동
+                  currentDistrictCode: "11710"
+                  compareDistrictCode: "11740"
+                  variables:
+                    - variableKey: monthly_income
+                      variableValue: "5000000"
+                      valueType: NUMBER
+                    - variableKey: monthly_housing_cost
+                      variableValue: "1400000"
+                      valueType: NUMBER
+      responses:
+        '201':
+          description: 시나리오 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseScenarioResponse'
+
+    get:
+      tags:
+        - Scenario
+      summary: 시나리오 목록 조회
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: 시나리오 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseScenarioListResponse'
+
+  /api/scenarios/{scenarioId}:
+    patch:
+      tags:
+        - Scenario
+      summary: 시나리오 수정
+      parameters:
+        - $ref: '#/components/parameters/ScenarioId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateScenarioRequest'
+      responses:
+        '200':
+          description: 시나리오 수정 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseScenarioResponse'
+
+    delete:
+      tags:
+        - Scenario
+      summary: 시나리오 삭제
+      parameters:
+        - $ref: '#/components/parameters/ScenarioId'
+      responses:
+        '200':
+          description: 시나리오 삭제 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseVoid'
+
+  /api/simulation-sessions/{sessionId}/run:
+    post:
+      tags:
+        - SimulationResult
+      summary: 시뮬레이션 실행
+      description: 저장된 온보딩과 시나리오를 기반으로 결과를 계산합니다.
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunSimulationRequest'
+            example:
+              forceRecalculate: true
+      responses:
+        '200':
+          description: 시뮬레이션 실행 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseRunSimulationResponse'
+
+  /api/simulation-results/{resultId}:
+    get:
+      tags:
+        - SimulationResult
+      summary: 시뮬레이션 전체 결과 조회
+      parameters:
+        - $ref: '#/components/parameters/ResultId'
+      responses:
+        '200':
+          description: 결과 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSimulationResultResponse'
+
+  /api/simulation-results/{resultId}/summary:
+    get:
+      tags:
+        - SimulationResult
+      summary: 결과 요약 조회
+      parameters:
+        - $ref: '#/components/parameters/ResultId'
+      responses:
+        '200':
+          description: 결과 요약 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseResultSummaryResponse'
+
+  /api/simulation-results/{resultId}/comparison:
+    get:
+      tags:
+        - SimulationResult
+      summary: A/B 비교 결과 조회
+      parameters:
+        - $ref: '#/components/parameters/ResultId'
+      responses:
+        '200':
+          description: A/B 비교 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseComparisonResponse'
+
+  /api/simulation-results/{resultId}/evidence:
+    get:
+      tags:
+        - SimulationResult
+      summary: 데이터 근거 조회
+      parameters:
+        - $ref: '#/components/parameters/ResultId'
+      responses:
+        '200':
+          description: 데이터 근거 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseEvidenceResponse'
+
+  /api/simulation-results/{resultId}/thresholds:
+    get:
+      tags:
+        - Threshold
+      summary: 임계점 결과 조회
+      parameters:
+        - $ref: '#/components/parameters/ResultId'
+      responses:
+        '200':
+          description: 임계점 결과 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseThresholdResultListResponse'
+
+  /api/simulation-results/{resultId}/red-zones:
+    get:
+      tags:
+        - Threshold
+      summary: Red Zone 조회
+      parameters:
+        - $ref: '#/components/parameters/ResultId'
+      responses:
+        '200':
+          description: Red Zone 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseRedZoneListResponse'
+
+  /api/simulation-results/{resultId}/recovery-levers:
+    get:
+      tags:
+        - Recommendation
+      summary: 회복 레버 조회
+      parameters:
+        - $ref: '#/components/parameters/ResultId'
+      responses:
+        '200':
+          description: 회복 레버 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseRecoveryLeverListResponse'
+
+  /api/simulation-results/{resultId}/weekly-actions:
+    get:
+      tags:
+        - Recommendation
+      summary: 이번 주 할 일 조회
+      parameters:
+        - $ref: '#/components/parameters/ResultId'
+      responses:
+        '200':
+          description: 이번 주 할 일 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseWeeklyActionListResponse'
+
+  /api/datasets:
+    get:
+      tags:
+        - Dataset
+      summary: 사용자용 데이터셋 목록 조회
+      responses:
+        '200':
+          description: 데이터셋 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseDatasetListResponse'
+
+  /api/datasets/{datasetId}:
+    get:
+      tags:
+        - Dataset
+      summary: 사용자용 데이터셋 상세 조회
+      parameters:
+        - $ref: '#/components/parameters/DatasetId'
+      responses:
+        '200':
+          description: 데이터셋 상세 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseDatasetResponse'
+
+  /api/external-links:
+    get:
+      tags:
+        - Content
+      summary: 외부 서비스 링크 목록 조회
+      parameters:
+        - name: lifeStageCode
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/LifeStageCode'
+          example: FAMILY
+      responses:
+        '200':
+          description: 외부 링크 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseExternalLinkListResponse'
+
+  /api/external-links/{linkId}/click:
+    post:
+      tags:
+        - Content
+      summary: 외부 서비스 클릭 로그 저장
+      parameters:
+        - name: linkId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 1
+      responses:
+        '200':
+          description: 외부 링크 클릭 저장 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseExternalLinkClickResponse'
+
+  /api/admin/auth/login:
+    post:
+      tags:
+        - AdminAuth
+      summary: 관리자 로그인
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminLoginRequest'
+            example:
+              email: admin@pivot-seoul.com
+              password: password1234
+      responses:
+        '200':
+          description: 관리자 로그인 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseAdminLoginResponse'
+
+  /api/admin/auth/refresh:
+    post:
+      tags:
+        - AdminAuth
+      summary: 관리자 토큰 재발급
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: 토큰 재발급 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTokenResponse'
+
+  /api/admin/dashboard/summary:
+    get:
+      tags:
+        - Admin
+      summary: 관리자 대시보드 요약 조회
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 관리자 대시보드 요약 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseAdminDashboardResponse'
+
+  /api/admin/accounts:
+    get:
+      tags:
+        - Admin
+      summary: 관리자 계정 목록 조회
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 관리자 계정 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseAdminUserListResponse'
+
+    post:
+      tags:
+        - Admin
+      summary: 관리자 계정 생성
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAdminUserRequest'
+      responses:
+        '201':
+          description: 관리자 계정 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseAdminUserResponse'
+
+  /api/admin/datasets:
+    get:
+      tags:
+        - AdminDataset
+      summary: 관리자 데이터셋 목록 조회
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 관리자 데이터셋 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseDatasetListResponse'
+
+    post:
+      tags:
+        - AdminDataset
+      summary: 데이터셋 등록
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDatasetRequest'
+      responses:
+        '201':
+          description: 데이터셋 등록 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseDatasetResponse'
+
+  /api/admin/datasets/{datasetId}:
+    patch:
+      tags:
+        - AdminDataset
+      summary: 데이터셋 수정
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DatasetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDatasetRequest'
+      responses:
+        '200':
+          description: 데이터셋 수정 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseDatasetResponse'
+
+  /api/admin/datasets/{datasetId}/validate:
+    post:
+      tags:
+        - AdminDataset
+      summary: 데이터셋 정합성 검사 실행
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DatasetId'
+      responses:
+        '200':
+          description: 정합성 검사 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseValidationResultResponse'
+
+  /api/admin/contents:
+    get:
+      tags:
+        - AdminContent
+      summary: 관리자 콘텐츠 목록 조회
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 콘텐츠 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseContentListResponse'
+
+    post:
+      tags:
+        - AdminContent
+      summary: 콘텐츠 생성
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateContentRequest'
+      responses:
+        '201':
+          description: 콘텐츠 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseContentResponse'
+
+  /api/admin/notices:
+    get:
+      tags:
+        - AdminContent
+      summary: 관리자 공지 목록 조회
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 공지 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseNoticeListResponse'
+
+    post:
+      tags:
+        - AdminContent
+      summary: 공지 생성
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNoticeRequest'
+      responses:
+        '201':
+          description: 공지 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseNoticeResponse'
+
+  /api/admin/analytics/usage:
+    get:
+      tags:
+        - Analytics
+      summary: 사용 현황 요약 조회
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 사용 현황 요약 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseUsageSummaryResponse'
+
+  /api/admin/analytics/life-stages:
+    get:
+      tags:
+        - Analytics
+      summary: 생애 단계별 사용 비율 조회
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 생애 단계별 사용 비율 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseLifeStageAnalyticsResponse'
+
+  /api/admin/analytics/funnel:
+    get:
+      tags:
+        - Analytics
+      summary: 퍼널 이탈률 조회
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 퍼널 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseFunnelAnalyticsResponse'
+
+  /api/admin/logs/api-errors:
+    get:
+      tags:
+        - Log
+      summary: API 오류 로그 조회
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: API 오류 로그 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseApiErrorLogListResponse'
+
+  /api/admin/logs/ai-anomalies:
+    get:
+      tags:
+        - Log
+      summary: AI 계산 이상 탐지 로그 조회
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: AI 이상 탐지 로그 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseAiAnomalyLogListResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      description: 시뮬레이션 세션 ID
+      schema:
+        type: integer
+        format: int64
+      example: 1
+
+    ScenarioId:
+      name: scenarioId
+      in: path
+      required: true
+      description: 시나리오 ID
+      schema:
+        type: integer
+        format: int64
+      example: 1
+
+    ResultId:
+      name: resultId
+      in: path
+      required: true
+      description: 시뮬레이션 결과 ID
+      schema:
+        type: integer
+        format: int64
+      example: 1
+
+    DatasetId:
+      name: datasetId
+      in: path
+      required: true
+      description: 데이터셋 ID
+      schema:
+        type: integer
+        format: int64
+      example: 1
+
+  schemas:
+    ApiResponseVoid:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: 요청이 성공했습니다.
+        data:
+          nullable: true
+          example: null
+
+    LifeStageCode:
+      type: string
+      enum:
+        - YOUTH
+        - FAMILY
+        - SENIOR
+      example: FAMILY
+
+    ScenarioType:
+      type: string
+      enum:
+        - CURRENT
+        - COMPARE
+      example: CURRENT
+
+    ValueType:
+      type: string
+      enum:
+        - STRING
+        - NUMBER
+        - BOOLEAN
+        - DATE
+      example: STRING
+
+    ThresholdStatus:
+      type: string
+      enum:
+        - STABLE
+        - WARNING
+        - COLLAPSE
+      example: WARNING
+
+    AdminRole:
+      type: string
+      enum:
+        - SUPER_ADMIN
+        - ADMIN
+        - DATA_MANAGER
+        - CONTENT_MANAGER
+      example: ADMIN
+
+    ApiResponseUserHomeResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/UserHomeResponse'
+
+    UserHomeResponse:
+      type: object
+      properties:
+        title:
+          type: string
+          example: 주거는 환경이 아니라 생애의 Pivot입니다
+        subtitle:
+          type: string
+          example: 서울시 공공데이터로 내 생애 선택을 미리 비교해보세요.
+        lifeStages:
+          type: array
+          items:
+            $ref: '#/components/schemas/LifeStageResponse'
+        activeNotices:
+          type: array
+          items:
+            $ref: '#/components/schemas/NoticeResponse'
+
+    ApiResponseLifeStageListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/LifeStageResponse'
+
+    LifeStageResponse:
+      type: object
+      properties:
+        code:
+          $ref: '#/components/schemas/LifeStageCode'
+        name:
+          type: string
+          example: 신혼·출산기
+        description:
+          type: string
+          example: 아이 낳고 복직해도 남는 돈이 있을까?
+        displayOrder:
+          type: integer
+          example: 2
+
+    ApiResponseLifeStageDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/LifeStageDetailResponse'
+
+    LifeStageDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/LifeStageResponse'
+        - type: object
+          properties:
+            onboardingQuestions:
+              type: array
+              items:
+                type: string
+              example:
+                - current_district_code
+                - household_type
+                - child_age
+                - return_to_work_month
+
+    ApiResponseDistrictListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/DistrictResponse'
+
+    ApiResponseDistrictResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/DistrictResponse'
+
+    DistrictResponse:
+      type: object
+      properties:
+        districtCode:
+          type: string
+          example: "11710"
+        districtName:
+          type: string
+          example: 송파구
+        regionGroup:
+          type: string
+          example: 동남권
+
+    CreateSessionRequest:
+      type: object
+      required:
+        - lifeStageCode
+      properties:
+        lifeStageCode:
+          $ref: '#/components/schemas/LifeStageCode'
+
+    ApiResponseSessionResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/SessionResponse'
+
+    SessionResponse:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+          format: int64
+          example: 1
+        sessionUuid:
+          type: string
+          example: 2b1a6fb3-7d2e-4b79-9bde-4f2632b10c20
+        lifeStageCode:
+          $ref: '#/components/schemas/LifeStageCode'
+        status:
+          type: string
+          example: CREATED
+        expiredAt:
+          type: string
+          format: date-time
+          example: 2026-05-09T15:00:00
+
+    ApiResponseSessionSummaryResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/SessionSummaryResponse'
+
+    SessionSummaryResponse:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+          format: int64
+          example: 1
+        lifeStageCode:
+          $ref: '#/components/schemas/LifeStageCode'
+        currentDistrictName:
+          type: string
+          example: 송파구
+        compareDistrictName:
+          type: string
+          example: 강동구
+        onboardingSummary:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            household_type: couple_child
+            child_age: "2"
+            return_to_work_month: "6"
+        scenarios:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScenarioResponse'
+
+    CreateOnboardingRequest:
+      type: object
+      required:
+        - lifeStageCode
+        - answers
+      properties:
+        lifeStageCode:
+          $ref: '#/components/schemas/LifeStageCode'
+        answers:
+          type: array
+          items:
+            $ref: '#/components/schemas/OnboardingAnswerRequest'
+
+    UpdateOnboardingRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateOnboardingRequest'
+
+    OnboardingAnswerRequest:
+      type: object
+      required:
+        - questionKey
+        - answerValue
+        - valueType
+      properties:
+        questionKey:
+          type: string
+          example: child_age
+        answerValue:
+          type: string
+          example: "2"
+        valueType:
+          $ref: '#/components/schemas/ValueType'
+
+    ApiResponseOnboardingSummaryResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/OnboardingSummaryResponse'
+
+    OnboardingSummaryResponse:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+          format: int64
+          example: 1
+        lifeStageCode:
+          $ref: '#/components/schemas/LifeStageCode'
+        answers:
+          type: array
+          items:
+            $ref: '#/components/schemas/OnboardingAnswerResponse'
+
+    OnboardingAnswerResponse:
+      type: object
+      properties:
+        questionKey:
+          type: string
+          example: child_age
+        answerValue:
+          type: string
+          example: "2"
+        valueType:
+          $ref: '#/components/schemas/ValueType'
+
+    CreateScenarioRequest:
+      type: object
+      required:
+        - scenarioType
+        - title
+        - currentDistrictCode
+        - variables
+      properties:
+        scenarioType:
+          $ref: '#/components/schemas/ScenarioType'
+        title:
+          type: string
+          example: 현재 조건
+        currentDistrictCode:
+          type: string
+          example: "11710"
+        compareDistrictCode:
+          type: string
+          nullable: true
+          example: "11740"
+        variables:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScenarioVariableRequest'
+
+    UpdateScenarioRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateScenarioRequest'
+
+    ScenarioVariableRequest:
+      type: object
+      properties:
+        variableKey:
+          type: string
+          example: monthly_income
+        variableValue:
+          type: string
+          example: "5000000"
+        valueType:
+          $ref: '#/components/schemas/ValueType'
+
+    ApiResponseScenarioResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ScenarioResponse'
+
+    ApiResponseScenarioListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/ScenarioResponse'
+
+    ScenarioResponse:
+      type: object
+      properties:
+        scenarioId:
+          type: integer
+          format: int64
+          example: 1
+        scenarioType:
+          $ref: '#/components/schemas/ScenarioType'
+        title:
+          type: string
+          example: 강동구로 이동
+        currentDistrictName:
+          type: string
+          example: 송파구
+        compareDistrictName:
+          type: string
+          nullable: true
+          example: 강동구
+        variables:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScenarioVariableResponse'
+
+    ScenarioVariableResponse:
+      type: object
+      properties:
+        variableKey:
+          type: string
+          example: monthly_income
+        variableValue:
+          type: string
+          example: "5000000"
+        valueType:
+          $ref: '#/components/schemas/ValueType'
+
+    RunSimulationRequest:
+      type: object
+      properties:
+        forceRecalculate:
+          type: boolean
+          example: true
+
+    ApiResponseRunSimulationResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/RunSimulationResponse'
+
+    RunSimulationResponse:
+      type: object
+      properties:
+        resultId:
+          type: integer
+          format: int64
+          example: 1
+        sessionId:
+          type: integer
+          format: int64
+          example: 1
+        overallStatus:
+          $ref: '#/components/schemas/ThresholdStatus'
+        summaryText:
+          type: string
+          example: 현재 조건에서는 보육 접근성과 주거비 부담이 경계 상태입니다.
+
+    ApiResponseSimulationResultResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/SimulationResultResponse'
+
+    SimulationResultResponse:
+      type: object
+      properties:
+        resultId:
+          type: integer
+          format: int64
+          example: 1
+        overallStatus:
+          $ref: '#/components/schemas/ThresholdStatus'
+        riskScore:
+          type: number
+          example: 72.5
+        summaryText:
+          type: string
+          example: 강동구로 이동하면 주거비 부담은 완화되지만 통근 시간이 증가합니다.
+        thresholdResults:
+          type: array
+          items:
+            $ref: '#/components/schemas/ThresholdResultResponse'
+        comparison:
+          $ref: '#/components/schemas/ComparisonResponse'
+        recoveryLevers:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecoveryLeverResponse'
+        weeklyActions:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeeklyActionResponse'
+
+    ApiResponseResultSummaryResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ResultSummaryResponse'
+
+    ResultSummaryResponse:
+      type: object
+      properties:
+        overallStatus:
+          $ref: '#/components/schemas/ThresholdStatus'
+        mostRiskyMetric:
+          type: string
+          example: childcare_access
+        oneLineJudgement:
+          type: string
+          example: 복직 가능성은 있으나 보육 접근성 확보가 먼저 필요합니다.
+
+    ApiResponseComparisonResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ComparisonResponse'
+
+    ComparisonResponse:
+      type: object
+      properties:
+        scenarioA:
+          $ref: '#/components/schemas/ScenarioScoreResponse'
+        scenarioB:
+          $ref: '#/components/schemas/ScenarioScoreResponse'
+        betterScenario:
+          type: string
+          example: COMPARE
+        keyDifferences:
+          type: array
+          items:
+            type: string
+          example:
+            - 주거비 부담 감소
+            - 보육 접근성 증가
+            - 통근 시간 증가
+
+    ScenarioScoreResponse:
+      type: object
+      properties:
+        scenarioTitle:
+          type: string
+          example: 현재 조건
+        status:
+          $ref: '#/components/schemas/ThresholdStatus'
+        riskScore:
+          type: number
+          example: 72.5
+
+    ApiResponseEvidenceResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/EvidenceResponse'
+
+    EvidenceResponse:
+      type: object
+      properties:
+        datasets:
+          type: array
+          items:
+            $ref: '#/components/schemas/DatasetResponse'
+        calculationLogs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalculationLogResponse'
+        disclaimer:
+          type: string
+          example: 본 결과는 공공데이터 기반 참고용 시뮬레이션입니다.
+
+    CalculationLogResponse:
+      type: object
+      properties:
+        metricKey:
+          type: string
+          example: housing_cost_burden
+        formula:
+          type: string
+          example: monthly_housing_cost / monthly_income
+        calculatedValue:
+          type: number
+          example: 0.36
+        datasetName:
+          type: string
+          example: 서울시 전월세 실거래가 데이터
+
+    ApiResponseThresholdResultListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/ThresholdResultResponse'
+
+    ThresholdResultResponse:
+      type: object
+      properties:
+        thresholdType:
+          type: string
+          example: HOUSING_COST_BURDEN
+        metricName:
+          type: string
+          example: 주거비 부담률
+        calculatedValue:
+          type: number
+          example: 0.36
+        unit:
+          type: string
+          example: ratio
+        status:
+          $ref: '#/components/schemas/ThresholdStatus'
+        isRedZone:
+          type: boolean
+          example: true
+        judgementText:
+          type: string
+          example: 월 소득 대비 주거비 부담이 높은 편입니다.
+
+    ApiResponseRedZoneListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/RedZoneResponse'
+
+    RedZoneResponse:
+      type: object
+      properties:
+        redZoneType:
+          type: string
+          example: CHILDCARE_CROWDED
+        title:
+          type: string
+          example: 보육 접근성 부족
+        description:
+          type: string
+          example: 현재 조건에서는 어린이집 접근성이 낮아 복직 부담이 커질 수 있습니다.
+        severity:
+          type: string
+          example: HIGH
+
+    ApiResponseRecoveryLeverListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/RecoveryLeverResponse'
+
+    RecoveryLeverResponse:
+      type: object
+      properties:
+        leverType:
+          type: string
+          example: POLICY_SUPPORT
+        title:
+          type: string
+          example: 보육 지원 정책 확인
+        description:
+          type: string
+          example: 몽땅정보 만능키에서 보육 지원 정책을 확인해보세요.
+        expectedEffect:
+          type: string
+          example: 복직 부담 완화
+        externalLink:
+          $ref: '#/components/schemas/ExternalLinkResponse'
+
+    ApiResponseWeeklyActionListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/WeeklyActionResponse'
+
+    WeeklyActionResponse:
+      type: object
+      properties:
+        actionType:
+          type: string
+          example: CHECK_POLICY
+        title:
+          type: string
+          example: 몽땅정보 만능키에서 신청 가능 정책 확인하기
+        description:
+          type: string
+          example: 현재 자녀 연령 기준으로 신청 가능한 보육 정책을 확인합니다.
+        ctaLabel:
+          type: string
+          example: 정책 확인하기
+        ctaUrl:
+          type: string
+          example: https://umppa.seoul.go.kr
+        displayOrder:
+          type: integer
+          example: 1
+
+    ApiResponseDatasetListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/DatasetResponse'
+
+    ApiResponseDatasetResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/DatasetResponse'
+
+    DatasetResponse:
+      type: object
+      properties:
+        datasetId:
+          type: integer
+          format: int64
+          example: 1
+        datasetName:
+          type: string
+          example: 서울시 전월세 실거래가 데이터
+        sourceName:
+          type: string
+          example: 서울 열린데이터광장
+        sourceUrl:
+          type: string
+          example: https://data.seoul.go.kr
+        baseDate:
+          type: string
+          format: date
+          example: 2026-04-30
+        updateCycle:
+          type: string
+          example: MONTHLY
+        isActive:
+          type: boolean
+          example: true
+
+    CreateDatasetRequest:
+      type: object
+      required:
+        - datasetName
+        - sourceName
+        - sourceUrl
+        - baseDate
+      properties:
+        datasetName:
+          type: string
+          example: 서울시 어린이집 현황
+        sourceName:
+          type: string
+          example: 서울 열린데이터광장
+        sourceUrl:
+          type: string
+          example: https://data.seoul.go.kr
+        baseDate:
+          type: string
+          format: date
+          example: 2026-04-30
+        updateCycle:
+          type: string
+          example: MONTHLY
+
+    UpdateDatasetRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateDatasetRequest'
+        - type: object
+          properties:
+            isActive:
+              type: boolean
+              example: true
+
+    ApiResponseValidationResultResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ValidationResultResponse'
+
+    ValidationResultResponse:
+      type: object
+      properties:
+        datasetId:
+          type: integer
+          format: int64
+          example: 1
+        status:
+          type: string
+          example: PASSED
+        message:
+          type: string
+          example: 필수 컬럼과 기준일 검증을 통과했습니다.
+        checkedAt:
+          type: string
+          format: date-time
+          example: 2026-05-09T14:30:00
+
+    ApiResponseExternalLinkListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/ExternalLinkResponse'
+
+    ExternalLinkResponse:
+      type: object
+      properties:
+        linkId:
+          type: integer
+          format: int64
+          example: 1
+        serviceName:
+          type: string
+          example: 몽땅정보 만능키
+        url:
+          type: string
+          example: https://umppa.seoul.go.kr
+        targetLifeStage:
+          $ref: '#/components/schemas/LifeStageCode'
+        description:
+          type: string
+          example: 출산·육아 정책 통합 정보 서비스
+
+    ApiResponseExternalLinkClickResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                linkId:
+                  type: integer
+                  format: int64
+                  example: 1
+                clicked:
+                  type: boolean
+                  example: true
+
+    AdminLoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          example: admin@pivot-seoul.com
+        password:
+          type: string
+          example: password1234
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiJ9.refresh.token
+
+    ApiResponseAdminLoginResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/AdminLoginResponse'
+
+    AdminLoginResponse:
+      type: object
+      properties:
+        adminId:
+          type: integer
+          format: int64
+          example: 1
+        email:
+          type: string
+          example: admin@pivot-seoul.com
+        role:
+          $ref: '#/components/schemas/AdminRole'
+        token:
+          $ref: '#/components/schemas/TokenResponse'
+
+    ApiResponseTokenResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/TokenResponse'
+
+    TokenResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiJ9.access.token
+        refreshToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiJ9.refresh.token
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          example: 3600
+
+    ApiResponseAdminDashboardResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/AdminDashboardResponse'
+
+    AdminDashboardResponse:
+      type: object
+      properties:
+        todayVisitors:
+          type: integer
+          example: 120
+        simulationRuns:
+          type: integer
+          example: 54
+        completionRate:
+          type: number
+          example: 68.4
+        recentErrorCount:
+          type: integer
+          example: 3
+
+    CreateAdminUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          example: data-manager@pivot-seoul.com
+        name:
+          type: string
+          example: 데이터 담당자
+        password:
+          type: string
+          example: password1234
+        role:
+          $ref: '#/components/schemas/AdminRole'
+
+    ApiResponseAdminUserResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/AdminUserResponse'
+
+    ApiResponseAdminUserListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/AdminUserResponse'
+
+    AdminUserResponse:
+      type: object
+      properties:
+        adminId:
+          type: integer
+          format: int64
+          example: 1
+        email:
+          type: string
+          example: admin@pivot-seoul.com
+        name:
+          type: string
+          example: 최고 관리자
+        role:
+          $ref: '#/components/schemas/AdminRole'
+        isActive:
+          type: boolean
+          example: true
+
+    CreateContentRequest:
+      type: object
+      properties:
+        contentType:
+          type: string
+          example: HOME_HERO
+        title:
+          type: string
+          example: 주거는 환경이 아니라 생애의 Pivot입니다
+        body:
+          type: string
+          example: 서울시 공공데이터로 내 선택을 비교해보세요.
+        isActive:
+          type: boolean
+          example: true
+
+    ApiResponseContentResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ContentResponse'
+
+    ApiResponseContentListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/ContentResponse'
+
+    ContentResponse:
+      type: object
+      properties:
+        contentId:
+          type: integer
+          format: int64
+          example: 1
+        contentType:
+          type: string
+          example: HOME_HERO
+        title:
+          type: string
+          example: 주거는 환경이 아니라 생애의 Pivot입니다
+        body:
+          type: string
+          example: 서울시 공공데이터로 내 선택을 비교해보세요.
+        isActive:
+          type: boolean
+          example: true
+
+    CreateNoticeRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          example: 서비스 점검 안내
+        body:
+          type: string
+          example: 5월 10일 02:00부터 03:00까지 점검이 진행됩니다.
+        noticeType:
+          type: string
+          example: MAINTENANCE
+        startAt:
+          type: string
+          format: date-time
+          example: 2026-05-10T02:00:00
+        endAt:
+          type: string
+          format: date-time
+          example: 2026-05-10T03:00:00
+        isActive:
+          type: boolean
+          example: true
+
+    ApiResponseNoticeResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/NoticeResponse'
+
+    ApiResponseNoticeListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/NoticeResponse'
+
+    NoticeResponse:
+      type: object
+      properties:
+        noticeId:
+          type: integer
+          format: int64
+          example: 1
+        title:
+          type: string
+          example: 서비스 점검 안내
+        body:
+          type: string
+          example: 5월 10일 02:00부터 03:00까지 점검이 진행됩니다.
+        noticeType:
+          type: string
+          example: MAINTENANCE
+        isActive:
+          type: boolean
+          example: true
+
+    ApiResponseUsageSummaryResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/UsageSummaryResponse'
+
+    UsageSummaryResponse:
+      type: object
+      properties:
+        totalVisitors:
+          type: integer
+          example: 10240
+        totalSimulationRuns:
+          type: integer
+          example: 3400
+        averageCompletionRate:
+          type: number
+          example: 71.2
+
+    ApiResponseLifeStageAnalyticsResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/LifeStageAnalyticsResponse'
+
+    LifeStageAnalyticsResponse:
+      type: object
+      properties:
+        lifeStageCode:
+          $ref: '#/components/schemas/LifeStageCode'
+        count:
+          type: integer
+          example: 1200
+        ratio:
+          type: number
+          example: 35.2
+
+    ApiResponseFunnelAnalyticsResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/FunnelAnalyticsResponse'
+
+    FunnelAnalyticsResponse:
+      type: object
+      properties:
+        stepName:
+          type: string
+          example: ONBOARDING
+        enteredCount:
+          type: integer
+          example: 1000
+        completedCount:
+          type: integer
+          example: 740
+        dropOffRate:
+          type: number
+          example: 26.0
+
+    ApiResponseApiErrorLogListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/ApiErrorLogResponse'
+
+    ApiErrorLogResponse:
+      type: object
+      properties:
+        logId:
+          type: integer
+          format: int64
+          example: 1
+        endpoint:
+          type: string
+          example: /api/simulation-sessions/1/run
+        method:
+          type: string
+          example: POST
+        statusCode:
+          type: integer
+          example: 500
+        errorMessage:
+          type: string
+          example: Calculation failed
+        createdAt:
+          type: string
+          format: date-time
+          example: 2026-05-09T14:30:00
+
+    ApiResponseAiAnomalyLogListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/AiAnomalyLogResponse'
+
+    AiAnomalyLogResponse:
+      type: object
+      properties:
+        logId:
+          type: integer
+          format: int64
+          example: 1
+        resultId:
+          type: integer
+          format: int64
+          example: 1
+        anomalyType:
+          type: string
+          example: OUT_OF_RANGE
+        metricKey:
+          type: string
+          example: childcare_access_score
+        expectedRange:
+          type: string
+          example: 0.0 ~ 1.0
+        actualValue:
+          type: number
+          example: 1.42
+        detectedAt:
+          type: string
+          format: date-time
+          example: 2026-05-09T14:30:00
+
+    BaseApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: 요청이 성공했습니다.
+        data:
+          nullable: true
+          description: 엔드포인트별 페이로드 (타입은 ApiResponse* 스키마에서 오버라이드)

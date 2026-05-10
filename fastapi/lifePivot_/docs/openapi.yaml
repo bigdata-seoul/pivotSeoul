@@ -1,0 +1,458 @@
+openapi: 3.0.3
+
+info:
+  title: Pivot Seoul API (Domain-First)
+  version: 1.0.0
+  description: |
+    기능 중심 모듈 구조(`modules/{feature}/pipelines/*`)에 맞춘 API 명세입니다.
+
+    사용자 플로우:
+    1) 생애 단계/기본 정보 입력
+    2) 기능별 분석(housing/career/childcare/senior/policy)
+    3) 통합 시뮬레이션 실행(simulation)
+    4) LLM 해설 생성(llm_explanation)
+
+    운영/데이터 플로우:
+    - 원천 데이터 소스 조회 및 적재(data_source)
+
+servers:
+  - url: http://localhost:8000
+    description: Local FastAPI
+
+tags:
+  - name: Health
+    description: 서비스 상태 확인
+  - name: Housing
+    description: 주거 분석 모듈
+  - name: Career
+    description: 커리어 추천 모듈
+  - name: Childcare
+    description: 보육 분석 모듈
+  - name: Senior
+    description: 노후 분석 모듈
+  - name: Policy
+    description: 정책 추천 모듈
+  - name: Simulation
+    description: 통합 시뮬레이션 모듈
+  - name: LLMExplanation
+    description: LLM 해설 모듈
+  - name: DataSource
+    description: 데이터 소스 관리 모듈
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: 헬스체크
+      responses:
+        "200":
+          description: 정상 응답
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: fastapi
+
+  /:
+    get:
+      tags: [Health]
+      summary: 루트 확인
+      responses:
+        "200":
+          description: 정상 응답
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Pivot Seoul FastAPI
+
+  /api/v1/housing/analyze:
+    post:
+      tags: [Housing]
+      summary: 주거 분석 실행
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HousingRequest"
+      responses:
+        "200":
+          description: 분석 결과
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HousingResult"
+
+  /api/v1/career/recommend:
+    post:
+      tags: [Career]
+      summary: 커리어 추천 실행
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CareerRequest"
+      responses:
+        "200":
+          description: 추천 결과
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CareerResult"
+
+  /api/v1/childcare/analyze:
+    post:
+      tags: [Childcare]
+      summary: 보육 분석 실행
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChildcareRequest"
+      responses:
+        "200":
+          description: 분석 결과
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChildcareResult"
+
+  /api/v1/senior/analyze:
+    post:
+      tags: [Senior]
+      summary: 노후 분석 실행
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeniorRequest"
+      responses:
+        "200":
+          description: 분석 결과
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeniorResult"
+
+  /api/v1/policy/recommend:
+    post:
+      tags: [Policy]
+      summary: 정책 추천 실행
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PolicyRequest"
+      responses:
+        "200":
+          description: 추천 결과
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyResult"
+
+  /api/v1/simulation/run:
+    post:
+      tags: [Simulation]
+      summary: 통합 시뮬레이션 실행
+      description: 기능 모듈(housing/career/childcare/senior/policy) 조합 실행
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulationRequest"
+      responses:
+        "200":
+          description: 실행 결과
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationResponse"
+
+  /api/v1/llm-explanation/generate:
+    post:
+      tags: [LLMExplanation]
+      summary: 해설 문장 생성
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LLMExplanationRequest"
+      responses:
+        "200":
+          description: 생성 결과
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LLMExplanationResponse"
+
+  /api/v1/data-source/sources:
+    get:
+      tags: [DataSource]
+      summary: 등록된 데이터 소스 목록 조회
+      responses:
+        "200":
+          description: 조회 결과
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DataSourceSummary"
+
+  /api/v1/data-source/ingest:
+    post:
+      tags: [DataSource]
+      summary: 데이터 소스 적재 실행
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DataSourceIngestRequest"
+      responses:
+        "200":
+          description: 적재 결과
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataSourceIngestResponse"
+
+components:
+  schemas:
+    HousingRequest:
+      type: object
+      required: [district]
+      properties:
+        district:
+          type: string
+          example: 송파구
+        monthly_income:
+          type: integer
+          nullable: true
+          example: 5000000
+
+    HousingResult:
+      type: object
+      properties:
+        district:
+          type: string
+          example: 송파구
+        rir:
+          type: number
+          format: float
+          nullable: true
+          example: 0.36
+        housing_status:
+          type: string
+          example: pending
+
+    CareerRequest:
+      type: object
+      required: [target_job]
+      properties:
+        target_job:
+          type: string
+          example: 백엔드 개발자
+        weekly_study_hours:
+          type: number
+          format: float
+          default: 0
+          example: 10
+
+    CareerResult:
+      type: object
+      properties:
+        target_job:
+          type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+          example: []
+
+    ChildcareRequest:
+      type: object
+      required: [district]
+      properties:
+        district:
+          type: string
+          example: 강동구
+        child_age:
+          type: integer
+          nullable: true
+          example: 2
+
+    ChildcareResult:
+      type: object
+      properties:
+        district:
+          type: string
+        capacity_status:
+          type: string
+          example: pending
+
+    SeniorRequest:
+      type: object
+      required: [district]
+      properties:
+        district:
+          type: string
+          example: 노원구
+        monthly_income:
+          type: integer
+          nullable: true
+          example: 2800000
+
+    SeniorResult:
+      type: object
+      properties:
+        district:
+          type: string
+        threshold_status:
+          type: string
+          example: pending
+
+    PolicyRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          example: 신혼부부 보육 지원
+
+    PolicyResult:
+      type: object
+      properties:
+        query:
+          type: string
+        candidates:
+          type: array
+          items:
+            type: string
+          example: []
+
+    SimulationRequest:
+      type: object
+      required: [life_stage, district, monthly_income, target_job]
+      properties:
+        life_stage:
+          type: string
+          enum: [youth, family, senior]
+          example: family
+        district:
+          type: string
+          example: 송파구
+        monthly_income:
+          type: integer
+          minimum: 0
+          example: 5000000
+        target_job:
+          type: string
+          example: 백엔드 개발자
+        weekly_study_hours:
+          type: number
+          minimum: 0
+          default: 0
+          example: 10
+        child_age:
+          type: integer
+          nullable: true
+          example: 2
+
+    SimulationResponse:
+      type: object
+      properties:
+        input_normalized:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            district: 송파구
+        modules_used:
+          type: array
+          items:
+            type: string
+          example:
+            - housing
+            - career
+            - childcare
+            - senior
+            - policy
+            - llm_explanation
+
+    LLMExplanationRequest:
+      type: object
+      required: [user_summary, metrics_summary]
+      properties:
+        user_summary:
+          type: string
+          example: family, 송파구
+        metrics_summary:
+          type: string
+          example: "{'rir':0.36,'status':'warning'}"
+        rag_snippets:
+          type: array
+          items:
+            type: string
+          example: []
+
+    LLMExplanationResponse:
+      type: object
+      properties:
+        final_explanation:
+          type: string
+          example: "(stub) 연결 후 생성됩니다."
+        first_action_title:
+          type: string
+          nullable: true
+        first_action_link:
+          type: string
+          nullable: true
+
+    DataSourceIngestRequest:
+      type: object
+      required: [source_key, path]
+      properties:
+        source_key:
+          type: string
+          example: sarang
+        path:
+          type: string
+          example: /app/data_sources/raw/sarang/original/file.csv
+
+    DataSourceIngestResponse:
+      type: object
+      properties:
+        source_key:
+          type: string
+          example: sarang
+        records_loaded:
+          type: integer
+          example: 0
+
+    DataSourceSummary:
+      type: object
+      properties:
+        key:
+          type: string
+          example: sarang
+        description:
+          type: string
+          example: registered source

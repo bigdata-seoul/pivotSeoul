@@ -1,0 +1,33 @@
+datasets:
+  - key: mongttang-programs
+    category: content
+    sourceFile: "raw/몽땅정보_만능키_사업_정보__s01_몽땅정보_만능키_사업_정보.csv"
+    description: "몽땅정보 만능키 사업 정보"
+  - key: seoul-attractive-jobs
+    category: jobs
+    sourceFile: "raw/서울시_매력일자리_사업정보__s01_서울시_매력일자리_사업정보.csv"
+    description: "서울시 매력일자리 사업 정보"
+  - key: daycare-capacity
+    category: childcare
+    sourceFile: "raw/서울시_보육통계_어린이집_정원_현황_자치구_유형별_정보__s01_서울시_보육통계_어린이집_정원_현황_자치구_유형별_정보.csv"
+    description: "서울시 보육통계 어린이집 정원 현황"
+  - key: neighborhood-care-center
+    category: childcare
+    sourceFile: "raw/서울시_우리동네키움센터_시설현황정보__s01_서울시_우리동네키움센터_시설현황정보.csv"
+    description: "서울시 우리동네키움센터 시설현황"
+  - key: public-job-postings
+    category: jobs
+    sourceFile: "raw/서울시_일자리포털_공공일자리_정보__s01_서울시_일자리포털_공공일자리_정보.csv"
+    description: "서울시 일자리포털 공공일자리 정보"
+  - key: seoul-job-education
+    category: education
+    sourceFile: "raw/서울일자리포털_교육정보_2018년_2024년__s01_서울일자리포털_교육정보_2018년_2024년.csv"
+    description: "서울일자리포털 교육 정보"
+  - key: seoul-kids-cafe
+    category: childcare
+    sourceFile: "raw/서울형_키즈카페_시설현황정보__s01_서울형_키즈카페_시설현황정보.csv"
+    description: "서울형 키즈카페 시설현황"
+  - key: rent-conversion-rate
+    category: housing
+    sourceFile: "raw/전_월세_plus_전환율_보증금_plus_규모별_20260507103637__s01_전_월세_plus_전환율_보증금_plus_규모별_2026050710363.csv"
+    description: "전월세 전환율(보증금 규모별)"

@@ -16,6 +16,11 @@ out/
 .idea/
 *.iml
 
+# Gradle `eclipse` task — contains machine-specific paths; regenerate with `./gradlew :back:eclipse`
+back/.classpath
+back/.project
+back/.settings/
+
 # Python / FastAPI
 __pycache__/
 *.py[cod]

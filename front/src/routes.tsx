@@ -20,6 +20,12 @@ import { AdminNotices } from './pages/admin-AdminNotices';
 import { AdminLogs } from './pages/admin-AdminLogs';
 import { AdminAccounts } from './pages/admin-AdminAccounts';
 
+/**
+ * Routing policy:
+ * - User journey is fixed: Home -> Stage -> Onboarding -> Scenario -> Results
+ * - Admin journey is split: login route and authenticated admin layout route
+ * - Redirect routes intentionally block invalid direct access paths
+ */
 export const router = createBrowserRouter([
   // ── User layout ──
   {

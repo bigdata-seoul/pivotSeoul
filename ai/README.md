@@ -1,25 +1,38 @@
-# AI·데이터 파이프라인 구조 (통합 문서 대응)
+# AI Layer Guide
 
-구현 코드는 **`fastapi/lifepivot/`** 아래에 둡니다. 운영 API는 **`fastapi/`**의 FastAPI 앱이 이 패키지를 import합니다.
+AI/추천/임계점/RAG 로직은 현재 백엔드 모듈 구조에 통합되어 있습니다.
 
-## 폴더 ↔ 문서 단계
+실제 구현 위치:
 
-| 문서 단계 | 디렉터리 |
-|-----------|----------|
-| 윤서 — 원천 데이터 | `lifepivot/data_sources/` |
-| 사랑 — 전처리 | `lifepivot/preprocessing/` |
-| Feature 생성 | `lifepivot/features/` |
-| 임계점 계산 | `lifepivot/threshold/` |
-| 추천 후보 | `lifepivot/recommendation/` |
-| RAG | `lifepivot/rag/` |
-| LLM | `lifepivot/llm/` |
-| 오케스트레이션 | `lifepivot/pipeline/` |
-| 최종 테이블 스키마 (Pydantic) | `lifepivot/schemas/` |
+- `fastapi/lifePivot_/modules/*`
+- `fastapi/lifePivot_/pipelines/*`
 
-## API (스텁)
+즉, 기술 단위 전역 폴더가 아니라 **기능 모듈 내부 기술 흐름**으로 관리합니다.
 
-- `GET /api/v1/meta/stages` — 파이프라인 단계 목록
-- `GET /api/v1/meta/data-sources` — OA 코드 등 원천 레지스트리
-- `POST /api/v1/pipeline/run` — 입력 기준 통합 스텁 실행
+## Feature ↔ AI Pipeline Mapping
 
-선우 레이어(화면)는 `front/` React 앱에서 소비합니다.
+- `pipelines/housing_*`
+  - 전처리 -> 피처 생성 -> 임계점 계산 -> 회귀/시계열 -> 결과 조립
+- `pipelines/career_*`
+  - 텍스트 전처리 -> 특성 생성 -> 유사도 매칭 -> 추천 정렬
+- `pipelines/childcare_*`
+  - 보육 데이터 정리 -> 정원/시설/접근성 계산 -> 임계점 산출
+- `pipelines/policy_*`
+  - 조건 매칭 -> 정책 랭킹 -> RAG 근거 검색
+- `pipelines/llm_explanation_*`
+  - 컨텍스트 생성 -> 프롬프트 생성 -> 가드레일 -> LLM 호출 -> 해설 생성
+
+## Data Inputs for AI
+
+데이터 원본은 아래에 저장되어 파이프라인 입력으로 사용됩니다.
+
+- `fastapi/lifePivot_/data/*` (평탄화 저장)
+- 경로 매핑: `fastapi/lifePivot_/data/MIGRATION_MAP.csv`
+
+## Design Intention
+
+AI 로직을 기능별로 묶으면, 이슈 대응 시 이동 범위가 작아집니다.
+
+- "보육 결과 이상" -> `pipelines/childcare_*` 점검
+- "정책 근거 품질" -> `pipelines/policy_rag_retriever.py`
+- "해설 톤 문제" -> `pipelines/llm_explanation_*`

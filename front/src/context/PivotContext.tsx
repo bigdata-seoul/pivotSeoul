@@ -93,6 +93,14 @@ const defaultScenarioB: ScenarioConditions = {
 
 const PivotContext = createContext<PivotContextType | null>(null);
 
+/**
+ * Lightweight domain risk engine for prototype UI.
+ *
+ * NOTE:
+ * - This function is intentionally deterministic and local-only.
+ * - Backend integration should replace fixed constants with model outputs
+ *   while preserving return shape (`RiskAnalysis`) for UI compatibility.
+ */
 function calculateRisk(scenario: ScenarioConditions, income: number): RiskAnalysis {
   const housingRatio = (scenario.monthlyHousing / income) * 100;
   const childcareRatio = (scenario.childcareCost / income) * 100;
@@ -140,6 +148,7 @@ export const PivotProvider = ({ children }: { children: React.ReactNode }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isOnboarded, setIsOnboarded] = useState(false);
 
+  // Partial updates keep form pages decoupled: each page only patches fields it owns.
   const updateProfile = (updates: Partial<UserProfile>) => setProfile(prev => ({ ...prev, ...updates }));
   const updateScenarioA = (updates: Partial<ScenarioConditions>) => setScenarioA(prev => ({ ...prev, ...updates }));
   const updateScenarioB = (updates: Partial<ScenarioConditions>) => setScenarioB(prev => ({ ...prev, ...updates }));
