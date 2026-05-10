@@ -2,32 +2,23 @@
 
 ## Purpose
 
-이 디렉토리는 Life Pivot 백엔드 API 서버입니다.
-구조는 기능 중심으로 유지하면서, 파일 탐색성을 위해 3뎁스 이하 평탄화 규칙을 적용했습니다.
+Life Pivot API 서버. **기능 도메인별 폴더**(`lifePivot_/app/modules/{기능}/`) 안에 HTTP 계약(`router`, `schema`)과 **같은 기능의 파이프라인**(`pipelines/`)을 둔다.
 
-## Entry Points
+## Entry points
 
-- `main.py`: 실행 진입점 (`lifePivot_.main`의 `app` export)
-- `lifePivot_/main.py`: 실제 FastAPI 앱 구성
-- `lifePivot_/api_router.py`: 기능 모듈 라우터 통합
+- `main.py` — `uvicorn main:app` (이 디렉터리를 `/app`으로 두고 실행)
+- `lifePivot_/app/main.py` — FastAPI 인스턴스
+- `lifePivot_/app/api/v1/router.py` — v1 라우터 조합
 
-## Domain Modules
+## Domain modules (under `lifePivot_/app/modules/`)
 
-- `housing`
-- `career`
-- `childcare`
-- `senior`
-- `policy`
-- `simulation`
-- `llm_explanation`
-- `data_source`
+`housing`, `career`, `childcare`, `senior`, `policy`, `simulation`, `llm_explanation`, `data_source`
 
-## Data Location
+## Data
 
-원천 데이터는 `lifePivot_/data` 아래에 평탄화되어 있습니다.
-기존 경로 대비 매핑은 `lifePivot_/data/MIGRATION_MAP.csv`에서 확인할 수 있습니다.
+원천 데이터는 `lifePivot_/data` 아래. 매핑은 `lifePivot_/data/MIGRATION_MAP.csv`.
 
 ## Run
 
 1. `pip install -r requirements.txt`
-2. `uvicorn main:app --reload --port 8000`
+2. `uvicorn main:app --reload --port 8000` (현재 디렉터리가 `fastapi`일 때)

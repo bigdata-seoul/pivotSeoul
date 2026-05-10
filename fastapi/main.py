@@ -1,1 +1,1 @@
-from lifePivot_.main import app
+from lifePivot_.app.main import app

@@ -1,38 +1,49 @@
-# AI Layer Guide
+# AI와 백엔드 역할 구분
 
-AI/추천/임계점/RAG 로직은 현재 백엔드 모듈 구조에 통합되어 있습니다.
+Pivot Seoul에서는 **공개 API·인증·영속성은 Spring**, **추론·파이프라인·RAG 등 무거운 AI 처리는 FastAPI(lifePivot_)** 로 나누는 것을 전제로 합니다. 이 레포 안에서 경계는 다음과 같습니다.
 
-실제 구현 위치:
+## 1. Spring Boot (`back/`) — API·오케스트레이션
 
-- `fastapi/lifePivot_/modules/*`
-- `fastapi/lifePivot_/pipelines/*`
+- 패키지: **`com.pivotseoul.domain.ai`**
+  - HTTP 진입점, 설정, 업스트림(FastAPI/외부 LLM) 호출 클라이언트, 응답 매핑을 둡니다.
+  - 예: `AiGatewayController`, `AiGatewayService` (연동 확장 지점)
+- DB 엔티티가 AI 전용으로 많지 않으면 `entity`/`repository` 없이 **controller + service** 만 두어도 됩니다.
 
-즉, 기술 단위 전역 폴더가 아니라 **기능 모듈 내부 기술 흐름**으로 관리합니다.
+## 2. FastAPI (`fastapi/lifePivot_/`) — 실제 AI 파이프라인
 
-## Feature ↔ AI Pipeline Mapping
+- **`app/modules/{기능}/`**, **`app/modules/{기능}/pipelines/`**: 기능별 전처리, 임계점, 추천, LLM 해설 등.
+- **`data/*`**: 파이프라인 입력 데이터·`MIGRATION_MAP.csv` 등.
 
-- `pipelines/housing_*`
-  - 전처리 -> 피처 생성 -> 임계점 계산 -> 회귀/시계열 -> 결과 조립
-- `pipelines/career_*`
-  - 텍스트 전처리 -> 특성 생성 -> 유사도 매칭 -> 추천 정렬
-- `pipelines/childcare_*`
-  - 보육 데이터 정리 -> 정원/시설/접근성 계산 -> 임계점 산출
-- `pipelines/policy_*`
-  - 조건 매칭 -> 정책 랭킹 -> RAG 근거 검색
-- `pipelines/llm_explanation_*`
-  - 컨텍스트 생성 -> 프롬프트 생성 -> 가드레일 -> LLM 호출 -> 해설 생성
+## 3. 이 폴더 (`ai/`) — 메타·공유 자료
 
-## Data Inputs for AI
+- 아키텍처 설명, 향후 **공통 프롬프트 템플릿**, **오프라인 평가 스크립트**, 벤더 중립 노트 등을 두기 좋은 위치입니다.
+- 런타임 코드의 단일 소스는 아니며, **백엔드 Java 코드는 `back/`**, **파이프라인 코드는 `fastapi/lifePivot_/`** 를 따릅니다.
 
-데이터 원본은 아래에 저장되어 파이프라인 입력으로 사용됩니다.
+## Feature ↔ Pipeline (요약)
 
-- `fastapi/lifePivot_/data/*` (평탄화 저장)
-- 경로 매핑: `fastapi/lifePivot_/data/MIGRATION_MAP.csv`
+| 이슈 영역 | 점검 위치 |
+|-----------|-----------|
+| 주거·임계점 | `lifePivot_/app/modules/housing/pipelines/` |
+| 커리어 추천 | `lifePivot_/app/modules/career/pipelines/` |
+| 보육 | `lifePivot_/app/modules/childcare/pipelines/` |
+| 정책·RAG | `lifePivot_/app/modules/policy/pipelines/` |
+| LLM 해설 | `lifePivot_/app/modules/llm_explanation/pipelines/` |
+| API 경계·토큰·라우팅 | `back/…/domain/ai`, 향후 RestTemplate/WebClient 등 |
 
-## Design Intention
+Spring 게이트웨이(`domain/ai`)가 FastAPI로 프록시합니다. 설정은 `back/src/main/resources/application.yml` 의 `pivotseoul.ai.fastapi-base-url`(환경변수 `PIVOT_FASTAPI_BASE_URL`) 과 타임아웃.
 
-AI 로직을 기능별로 묶으면, 이슈 대응 시 이동 범위가 작아집니다.
+**브라우저 호출:** `GET/POST http(s)://{spring}/api/ai/...` 만 사용 → Spring이 `http://{fastapi}/api/v1/...` 로 전달.
 
-- "보육 결과 이상" -> `pipelines/childcare_*` 점검
-- "정책 근거 품질" -> `pipelines/policy_rag_retriever.py`
-- "해설 톤 문제" -> `pipelines/llm_explanation_*`
+| Spring (`/api/ai`) | FastAPI upstream (`/api/v1`) |
+|--------------------|------------------------------|
+| `POST .../housing/analyze` | `/housing/analyze` |
+| `POST .../career/recommend` | `/career/recommend` |
+| `POST .../childcare/analyze` | `/childcare/analyze` |
+| `POST .../senior/analyze` | `/senior/analyze` |
+| `POST .../policy/recommend` | `/policy/recommend` |
+| `POST .../simulation/run` | `/simulation/run` |
+| `POST .../llm-explanation/generate` | `/llm-explanation/generate` |
+| `GET .../data-source/sources` | `/data-source/sources` |
+| `POST .../data-source/ingest` | `/data-source/ingest` |
+
+프론트 클라이언트 예시: `front/src/lib/pivot-api.ts` (`NEXT_PUBLIC_API_BASE` 기본 `http://localhost:8080`).

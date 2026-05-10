@@ -43,6 +43,7 @@ src
    │           ├─ content
    │           ├─ admin
    │           ├─ analytics
+   │           ├─ ai
    │           └─ log
    │
    └─ resources
@@ -71,6 +72,8 @@ domain/{name}
 
 Domains **admin**, **analytics**, and **log** do not define `enums` in this scaffold.
 
+**`domain/ai`** holds Spring-side AI **gateway/orchestration** (HTTP boundary, clients to FastAPI / LLM). It may omit `entity`, `repository`, `dto`, `enums` until persistence or contracts are needed.
+
 ---
 
 ## Domain contents (file names)
@@ -95,11 +98,13 @@ Domains **admin**, **analytics**, and **log** do not define `enums` in this scaf
 
 ### `domain/simulation`
 
+Aligned with **ERD v4 §1 (공통 시뮬레이션)** and Flyway `V1__erd_v4_core_simulation.sql`. Aggregated scores and threshold rows persist under **`scenario_result`** (not a separate `simulation_result` table).
+
 - **controller:** `SimulationSessionController`, `OnboardingController`, `ScenarioController`, `SimulationRunController`, `SimulationResultController`, `ThresholdController`, `RecommendationController`
 - **service:** `SimulationSessionService`, `OnboardingService`, `ScenarioService`, `SimulationEngineService`, `SimulationResultService`, `ThresholdService`, `RedZoneService`, `RecommendationService`, `RecoveryLeverService`, `WeeklyActionService`, `HousingCostCalculator`, `CommuteTimeCalculator`, `LearningTimeCalculator`, `ChildcareAccessCalculator`, `ReturnToWorkCalculator`, `RetirementCashflowCalculator`, `ScenarioScoreCalculator`
 - **dto:** `CreateSessionRequest`, `CreateOnboardingRequest`, `UpdateOnboardingRequest`, `CreateScenarioRequest`, `UpdateScenarioRequest`, `RunSimulationRequest`, `SessionResponse`, `SessionSummaryResponse`, `OnboardingAnswerResponse`, `OnboardingSummaryResponse`, `ScenarioResponse`, `ScenarioVariableResponse`, `RunSimulationResponse`, `SimulationResultResponse`, `ResultSummaryResponse`, `ComparisonResponse`, `EvidenceResponse`, `ThresholdResultResponse`, `ThresholdSummaryResponse`, `RedZoneResponse`, `RecoveryLeverResponse`, `WeeklyActionResponse`
-- **entity:** `SimulationSession`, `OnboardingAnswer`, `Scenario`, `ScenarioVariable`, `SimulationResult`, `ScenarioComparison`, `ThresholdResult`, `RedZoneRule`, `RecoveryLever`, `WeeklyAction`, `CalculationLog`
-- **repository:** matching `*Repository` for each entity above
+- **entity:** `SimulationSession`, `Scenario`, `ScenarioInputSummary`, `SimulationRun`, `ScenarioResult`, `ScenarioComparison`, `ThresholdResult`, `RedZoneRule`, `RecoveryLever`, `WeeklyAction`, `CalculationLog`
+- **repository:** `SimulationSessionRepository`, `ScenarioRepository`, `ScenarioInputSummaryRepository`, `SimulationRunRepository`, `ScenarioResultRepository`, `ScenarioComparisonRepository`, `ThresholdResultRepository`, `RedZoneRuleRepository`, `RecoveryLeverRepository`, `WeeklyActionRepository`, `CalculationLogRepository`
 - **enums:** `ScenarioType`, `SimulationStatus`, `ThresholdStatus`, `ThresholdType`, `RedZoneType`, `LeverType`
 
 Calculators live in **`service`** next to other services (no `calculator/` subfolder).
@@ -137,6 +142,12 @@ Calculators live in **`service`** next to other services (no `calculator/` subfo
 - **dto:** `CreateUserEventLogRequest`, `UsageSummaryResponse`, `LifeStageAnalyticsResponse`, `DistrictAnalyticsResponse`, `FunnelAnalyticsResponse`, `ExternalClickAnalyticsResponse`
 - **entity:** `UserEventLog`, `ExternalClickLog`
 - **repository:** `UserEventLogRepository`, `ExternalClickLogRepository`
+
+### `domain/ai`
+
+- **controller:** `AiGatewayController` (`/api/ai`)
+- **service:** `AiGatewayService`
+- (optional later: `dto`, clients for FastAPI / external LLM)
 
 ### `domain/log`
 
