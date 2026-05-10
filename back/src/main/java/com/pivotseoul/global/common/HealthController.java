@@ -5,9 +5,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/**
- * Simple health endpoint used by load balancers and uptime monitors.
- */
 @RestController
 public class HealthController {
 
