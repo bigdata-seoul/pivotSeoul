@@ -8,6 +8,9 @@ export interface DataSource {
   provider: string;
   year: string;
   status?: DataSourceStatus;
+  reliabilityScore?: number;
+  reliabilityStatus?: DataSourceStatus;
+  validationStatus?: string;
 }
 
 export interface DatasetStatus extends DataSource {
@@ -15,6 +18,48 @@ export interface DatasetStatus extends DataSource {
   version: string;
   rows: number;
   size: string;
+  sourceUrl?: string;
+  updateCycle?: string;
+}
+
+export interface SpringDataSourceResponse {
+  dataSourceId: number | null;
+  datasetId: number | null;
+  sourceName: string | null;
+  provider: string | null;
+  sourceType: string | null;
+  baseDate: string | null;
+  lastUpdatedAt: string | null;
+  datasetStatus: string | null;
+  reliabilityScore: number | null;
+  reliabilityStatus: string | null;
+  validationStatus: string | null;
+}
+
+export interface SpringDatasetResponse {
+  datasetId: number | null;
+  datasetCode: string | null;
+  datasetName: string | null;
+  provider: string | null;
+  sourceUrl: string | null;
+  updateCycle: string | null;
+  status: string | null;
+  lastUpdatedAt: string | null;
+  version: string | null;
+  rows: number | null;
+  reliabilityStatus: string | null;
+  validationStatus: string | null;
+}
+
+export interface SpringValidationResultResponse {
+  validationResultId: number | null;
+  dataSnapshotId: number | null;
+  status: string;
+  missingCount: number | null;
+  invalidCount: number | null;
+  duplicateCount: number | null;
+  message: string;
+  level: string;
 }
 
 export const MOCK_RESULT_DATA_SOURCES: DataSource[] = [
@@ -42,6 +87,59 @@ export function getMockDatasetStatuses(): DatasetStatus[] {
   return MOCK_DATASET_STATUSES;
 }
 
+function normalizeStatus(status: string | null | undefined): DataSourceStatus {
+  if (status === 'active' || status === 'warning' || status === 'outdated') return status;
+  return 'warning';
+}
+
+function yearFromDate(value: string | null | undefined): string {
+  return value?.slice(0, 4) || '-';
+}
+
+function toDatasetStatus(dataset: SpringDatasetResponse): DatasetStatus {
+  const lastUpdated = dataset.lastUpdatedAt ?? '';
+  return {
+    id: String(dataset.datasetId ?? dataset.datasetCode ?? ''),
+    label: dataset.datasetName ?? dataset.datasetCode ?? '-',
+    provider: dataset.provider ?? '-',
+    year: yearFromDate(lastUpdated),
+    lastUpdated,
+    version: dataset.version ?? '-',
+    rows: dataset.rows ?? 0,
+    size: '-',
+    status: normalizeStatus(dataset.status),
+    reliabilityStatus: normalizeStatus(dataset.reliabilityStatus),
+    validationStatus: dataset.validationStatus ?? undefined,
+    sourceUrl: dataset.sourceUrl ?? undefined,
+    updateCycle: dataset.updateCycle ?? undefined,
+  };
+}
+
+function toDataSource(source: SpringDataSourceResponse): DataSource {
+  const lastUpdated = source.lastUpdatedAt ?? source.baseDate ?? '';
+  return {
+    id: String(source.dataSourceId ?? source.datasetId ?? ''),
+    label: source.sourceName ?? '-',
+    provider: source.provider ?? '-',
+    year: yearFromDate(lastUpdated),
+    status: normalizeStatus(source.datasetStatus),
+    reliabilityScore: source.reliabilityScore ?? undefined,
+    reliabilityStatus: normalizeStatus(source.reliabilityStatus),
+    validationStatus: source.validationStatus ?? undefined,
+  };
+}
+
 export function fetchDatasetStatuses(): Promise<DatasetStatus[]> {
-  return fetchJson<DatasetStatus[]>('/data/datasets');
+  return fetchJson<SpringDatasetResponse[]>('/data/datasets')
+    .then((datasets) => datasets.map(toDatasetStatus));
+}
+
+export function fetchDataSources(): Promise<DataSource[]> {
+  return fetchJson<SpringDataSourceResponse[]>('/data/sources')
+    .then((sources) => sources.map(toDataSource));
+}
+
+export function fetchValidationResults(dataSnapshotId?: number): Promise<SpringValidationResultResponse[]> {
+  const path = dataSnapshotId == null ? '/data/validations' : `/data/validations/${dataSnapshotId}`;
+  return fetchJson<SpringValidationResultResponse[]>(path);
 }

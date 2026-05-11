@@ -1,4 +1,4 @@
-import { postJson } from './http';
+import { fetchJson, postJson } from './http';
 import type { ScenarioConditions } from '../context/PivotContext';
 
 export type RecommendationPriority = 'high' | 'medium';
@@ -23,6 +23,18 @@ export interface RecommendationRequest {
 
 export interface RecommendationResponse {
   recommendations: ResultRecommendation[];
+}
+
+export interface SpringRecommendationResponse {
+  id: string;
+  kind: string;
+  title: string;
+  from: string;
+  to: string;
+  effect: string;
+  tradeoff: string;
+  priority: string;
+  reason: string;
 }
 
 export function buildMockRecommendations(scenarioA: ScenarioConditions, scenarioB: ScenarioConditions): ResultRecommendation[] {
@@ -74,6 +86,35 @@ export function buildMockRecommendations(scenarioA: ScenarioConditions, scenario
   ];
 }
 
+function normalizeKind(kind: string | null | undefined): RecommendationKind {
+  if (kind === 'relocation' || kind === 'policy' || kind === 'work' || kind === 'housing') return kind;
+  return 'policy';
+}
+
+function normalizePriority(priority: string | null | undefined): RecommendationPriority {
+  return priority === 'high' ? 'high' : 'medium';
+}
+
+function toResultRecommendation(item: SpringRecommendationResponse): ResultRecommendation {
+  return {
+    id: item.id,
+    kind: normalizeKind(item.kind),
+    title: item.title,
+    from: item.from,
+    to: item.to,
+    effect: item.effect,
+    tradeoff: item.tradeoff,
+    priority: normalizePriority(item.priority),
+    reason: item.reason,
+  };
+}
+
 export function fetchRecommendations(request: RecommendationRequest): Promise<RecommendationResponse> {
-  return postJson<RecommendationResponse, RecommendationRequest>('/recommendations', request);
+  return postJson<{ recommendations: SpringRecommendationResponse[] }, RecommendationRequest>('/simulation/recommendations', request)
+    .then((response) => ({ recommendations: response.recommendations.map(toResultRecommendation) }));
+}
+
+export function fetchResultRecommendations(scenarioResultId: number): Promise<ResultRecommendation[]> {
+  return fetchJson<SpringRecommendationResponse[]>(`/simulation/results/${scenarioResultId}/recommendations`)
+    .then((recommendations) => recommendations.map(toResultRecommendation));
 }

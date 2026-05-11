@@ -1,6 +1,6 @@
 import { fetchJson } from './http';
 import type { DatasetStatus } from './dataApi';
-import { getMockDatasetStatuses } from './dataApi';
+import { fetchValidationResults, getMockDatasetStatuses, type SpringValidationResultResponse } from './dataApi';
 
 export type ServiceStatus = 'normal' | 'warning' | 'error';
 export type LogLevel = 'error' | 'warn' | 'info' | 'success';
@@ -36,6 +36,28 @@ export interface AdminDashboardSummary {
   totalSimulations: number;
   averageRiskScore: number;
   errorRate: number;
+}
+
+export interface DataOperationStatus {
+  status: ServiceStatus;
+  datasetCount: number;
+  validationWarningCount: number;
+  lastValidatedAt: string;
+}
+
+export interface RecommendationStatus {
+  status: ServiceStatus;
+  promptVersion: string;
+  recommendationVersion: string;
+  updatedAt: string;
+}
+
+export interface AdminDashboardResponse {
+  summary: AdminDashboardSummary;
+  serviceStatuses: ServiceMetric[];
+  aiStatuses: AiServiceStatus[];
+  dataOperation: DataOperationStatus;
+  promptRecommendation: RecommendationStatus;
 }
 
 export const MOCK_SERVICE_METRICS: ServiceMetric[] = [
@@ -74,6 +96,91 @@ export function getMockAdminDatasets(): DatasetStatus[] {
   return getMockDatasetStatuses();
 }
 
+function normalizeServiceStatus(status: string | null | undefined): ServiceStatus {
+  if (status === 'normal' || status === 'warning' || status === 'error') return status;
+  return 'warning';
+}
+
+function normalizeLogLevel(level: string | null | undefined): LogLevel {
+  if (level === 'error' || level === 'warn' || level === 'info' || level === 'success') return level;
+  return 'info';
+}
+
+function toServiceMetric(metric: ServiceMetric): ServiceMetric {
+  return {
+    ...metric,
+    status: normalizeServiceStatus(metric.status),
+  };
+}
+
+function toAiStatus(status: AiServiceStatus): AiServiceStatus {
+  return {
+    ...status,
+    status: normalizeServiceStatus(status.status),
+  };
+}
+
+function toDataOperationStatus(status: DataOperationStatus): DataOperationStatus {
+  return {
+    ...status,
+    status: normalizeServiceStatus(status.status),
+  };
+}
+
+function toRecommendationStatus(status: RecommendationStatus): RecommendationStatus {
+  return {
+    ...status,
+    status: normalizeServiceStatus(status.status),
+  };
+}
+
+function toValidationLog(result: SpringValidationResultResponse): ValidationLog {
+  return {
+    id: result.validationResultId == null ? `SNAPSHOT-${result.dataSnapshotId ?? 'UNKNOWN'}` : `VAL-${result.validationResultId}`,
+    level: normalizeLogLevel(result.level),
+    message: result.message,
+    source: result.dataSnapshotId == null ? 'DataValidation' : `Snapshot ${result.dataSnapshotId}`,
+    time: '',
+    actor: 'SYSTEM',
+  };
+}
+
 export function fetchAdminSummary(): Promise<AdminDashboardSummary> {
   return fetchJson<AdminDashboardSummary>('/admin/summary');
+}
+
+export function fetchAdminDashboard(): Promise<AdminDashboardResponse> {
+  return fetchJson<AdminDashboardResponse>('/admin/dashboard')
+    .then((dashboard) => ({
+      summary: dashboard.summary,
+      serviceStatuses: dashboard.serviceStatuses.map(toServiceMetric),
+      aiStatuses: dashboard.aiStatuses.map(toAiStatus),
+      dataOperation: toDataOperationStatus(dashboard.dataOperation),
+      promptRecommendation: toRecommendationStatus(dashboard.promptRecommendation),
+    }));
+}
+
+export function fetchServiceStatuses(): Promise<ServiceMetric[]> {
+  return fetchJson<ServiceMetric[]>('/admin/services')
+    .then((metrics) => metrics.map(toServiceMetric));
+}
+
+export function fetchAiStatuses(): Promise<AiServiceStatus[]> {
+  return fetchJson<AiServiceStatus[]>('/admin/ai/status')
+    .then((statuses) => statuses.map(toAiStatus));
+}
+
+export function fetchDataOperationStatus(): Promise<DataOperationStatus> {
+  return fetchJson<DataOperationStatus>('/admin/data/status')
+    .then(toDataOperationStatus);
+}
+
+export function fetchRecommendationStatus(): Promise<RecommendationStatus> {
+  return fetchJson<RecommendationStatus>('/admin/recommendations/status')
+    .then(toRecommendationStatus);
+}
+
+export function fetchValidationLogs(): Promise<ValidationLog[]> {
+  return fetchValidationResults()
+    .then((results) => results.map(toValidationLog));
 }
