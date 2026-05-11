@@ -14,16 +14,29 @@ import { useTheme } from '../context/ThemeContext';
 import { GaugeChart } from '../components/GaugeChart';
 import { getSimulationSession, SimulationSessionDetail } from '../lib/sessionApi';
 
+/**
+ * 이 파일은 시뮬레이션의 최종 결과 리포트 페이지를 담당합니다.
+ * 
+ * 비전공자를 위한 설명:
+ * 사용자가 입력한 정보를 바탕으로 계산된 '성적표'와 같은 페이지입니다.
+ * 현재 살고 있는 곳과 이사 갈 곳(또는 다른 시나리오)을 비교하여, 
+ * 경제적 위험도는 어떤지, 현금 흐름은 어떻게 변하는지를 각종 차트와 그래프로 보여줍니다.
+ */
+
+// 현금 흐름(내 통장 잔고의 변화)을 가상으로 계산해보는 함수입니다.
 function generateCashFlow(income: number, housing: number, childcare: number, applyPolicy: boolean, extraIncome: number, months = 12) {
-  const policyBonus = applyPolicy ? 30 : 0;
+  const policyBonus = applyPolicy ? 30 : 0; // 정책 지원금이 있다면 추가
   return Array.from({ length: months }, (_, i) => {
-    const variation = Math.sin(i * 0.7) * 8;
+    const variation = Math.sin(i * 0.7) * 8; // 약간의 현실적인 변동폭 추가
+    // 수입에서 주거비, 보육비, 생활비 등을 뺀 남는 돈(surplus)을 계산합니다.
     const surplus = income - housing - childcare - 130 + policyBonus + extraIncome + variation;
+    // 매달 남는 돈이 쌓여가는 과정(cumulative)을 계산합니다.
     const cumulative = surplus * (i + 1) + variation * 5;
     return { month: `${i + 1}월`, surplus: Math.round(surplus), cumulative: Math.round(cumulative) };
   });
 }
 
+// 오각형 모양의 레이더 차트에 들어갈 비교 데이터입니다.
 const districtRadarData = [
   { subject: '주거비', A: 80, B: 45 },
   { subject: '통근', A: 55, B: 75 },
@@ -33,35 +46,6 @@ const districtRadarData = [
   { subject: '환경', A: 60, B: 75 },
 ];
 
-const checklistItems = [
-  { id: 1, text: '서울 주거비 지원 정책 조회하기', link: '서울주거포털' },
-  { id: 2, text: '비교 자치구 전/월세 매물 확인', link: '부동산 앱' },
-  { id: 3, text: '육아종합지원센터 상담 예약', link: '서울시 홈페이지' },
-  { id: 4, text: '국민연금 예상 수령액 조회', link: 'NPS' },
-  { id: 5, text: '복직 후 실수령 계산 (4대보험)', link: '4대보험 계산기' },
-];
-
-const dataSources = [
-  { label: '서울시 주거비 통계', source: '서울열린데이터광장', year: '2024' },
-  { label: '통근 시간 분석', source: '서울연구원', year: '2023' },
-  { label: '보육비 지원 현황', source: '서울시 보육포털', year: '2024' },
-  { label: '노후 현금흐름 모델', source: '금융감독원', year: '2024' },
-];
-
-// ===== Spring run 응답 읽기 섹션 =====
-// /api/simulation/runs 응답에서 UI에 필요한 필드만 안전하게 꺼냅니다.
-function readStringField(value: unknown, field: string): string | undefined {
-  if (!value || typeof value !== 'object') return undefined;
-  const candidate = (value as Record<string, unknown>)[field];
-  return typeof candidate === 'string' ? candidate : undefined;
-}
-
-function readStringArrayField(value: unknown, field: string): string[] {
-  if (!value || typeof value !== 'object') return [];
-  const candidate = (value as Record<string, unknown>)[field];
-  return Array.isArray(candidate) ? candidate.filter((v): v is string => typeof v === 'string') : [];
-}
-
 export function Results() {
   const { profile, scenarioA, scenarioB, calculateRisk, aiAnalysis, runAiAnalysis, sessionId } = usePivot();
   const { c, isDark } = useTheme();
@@ -69,32 +53,25 @@ export function Results() {
   const [activeTab, setActiveTab] = useState<'monthly' | 'cumulative'>('monthly');
   const [sessionData, setSessionData] = useState<SimulationSessionDetail | null>(null);
 
-  // 백엔드에서 생성된 세션 데이터를 불러와 상태를 덮어씌움 (안전한 데이터 전달 보장)
+  // 페이지가 열리면 백엔드 서버에서 저장된 세션 정보(이전 계산 결과)를 가져옵니다.
   useEffect(() => {
     if (sessionId) {
       getSimulationSession(sessionId)
         .then(data => setSessionData(data))
-        .catch(err => console.error('세션 데이터를 불러오는데 실패했습니다:', err));
+        .catch(err => console.error('데이터를 불러오지 못했습니다:', err));
     }
   }, [sessionId]);
 
+  // AI 분석 결과(해설 등)를 서버에 요청합니다.
   useEffect(() => {
     void runAiAnalysis();
   }, [runAiAnalysis]);
 
-  // ===== AI 연결 상태 섹션 =====
-  // Spring run 결과에서 FastAPI health, 사용 모듈, LLM 해설을 추출합니다.
+  // AI가 작성해준 최종 해설 텍스트를 가져옵니다.
   const aiExplanation = readStringField(aiAnalysis.explanation, 'final_explanation');
-  const modulesUsed = Array.from(new Set([
-    ...readStringArrayField(aiAnalysis.scenarioA, 'modules_used'),
-    ...readStringArrayField(aiAnalysis.scenarioB, 'modules_used'),
-  ]));
-  const gatewayHealth = aiAnalysis.gatewayStatus?.fastapiHealthHttpStatus;
-  const backendRunStatus = aiAnalysis.backendRun?.runStatus;
 
-  // sessionData가 있으면 백엔드 데이터를, 없으면 로컬 profile을 폴백으로 사용
+  // 위험도 계산 (A 시나리오 vs B 시나리오)
   const safeProfile = sessionData ? sessionData.userCondition : profile;
-
   const riskA = calculateRisk(scenarioA, safeProfile.monthlyIncome);
   const riskB = calculateRisk(scenarioB, safeProfile.monthlyIncome);
 

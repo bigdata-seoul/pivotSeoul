@@ -7,6 +7,16 @@ import { useTheme } from '../context/ThemeContext';
 import { usePivot } from '../context/PivotContext';
 import { useState } from 'react';
 
+/**
+ * 이 파일은 웹사이트의 첫 화면(메인 페이지)을 담당합니다.
+ * 
+ * 비전공자를 위한 설명:
+ * 사용자가 사이트에 들어왔을 때 가장 먼저 보는 '대문'과 같은 페이지입니다.
+ * 서울시의 주요 통계 수치를 보여주고, 사용자가 자신의 연령대(청년, 신혼부부, 노년 등)를
+ * 선택하여 시뮬레이션을 시작할 수 있도록 안내합니다.
+ */
+
+// 서울시의 대표적인 통계 데이터들입니다. (화면에 예쁘게 보여주기 위한 용도)
 const seoulStats = [
   { label: '서울 평균 주거비율', value: '36%', status: 'warning' as const },
   { label: '평균 통근 시간', value: '48분', status: 'safe' as const },
@@ -14,6 +24,7 @@ const seoulStats = [
   { label: '25개 자치구', value: '분석 가능', status: 'safe' as const },
 ];
 
+// 각 구별 주거비 수준을 간단히 보여주는 미리보기 데이터입니다.
 const districtPreview = [
   { name: '강남구', rent: '↑ 고', risk: 'danger' as const },
   { name: '마포구', rent: '↗ 중상', risk: 'warning' as const },
@@ -29,6 +40,7 @@ const districtPreview = [
   { name: '양천구', rent: '→ 중', risk: 'safe' as const },
 ];
 
+// 사용자가 선택할 수 있는 생애주기 카드들입니다.
 const stageCards = [
   {
     id: 'youth',
@@ -57,26 +69,22 @@ const stageCards = [
 ];
 
 export function Home() {
-  const navigate = useNavigate();
-  const { c, isDark } = useTheme();
-  const { profile } = usePivot();
-  const [hoveredStage, setHoveredStage] = useState<string | null>(null);
+  const navigate = useNavigate(); // 페이지 이동을 도와주는 도구
+  const { c, isDark } = useTheme(); // 색상 테마 정보를 가져옵니다.
+  const { profile } = usePivot(); // 사용자 데이터를 관리하는 도구입니다.
+  const [hoveredStage, setHoveredStage] = useState<string | null>(null); // 마우스가 올라간 카드를 기억합니다.
 
+  // 위험도에 따라 다른 색상 스타일을 돌려주는 함수입니다.
   const getRiskStyle = (risk: 'safe' | 'warning' | 'danger') => {
     if (risk === 'safe') return { bg: c.successBg, border: c.successBorder, text: c.success };
     if (risk === 'warning') return { bg: c.warningBg, border: c.warningBorder, text: c.warning };
     return { bg: c.errorBg, border: c.errorBorder, text: c.error };
   };
 
-  const getStatStyle = (status: 'safe' | 'warning') =>
-    status === 'warning'
-      ? { color: c.warning }
-      : { color: c.success };
-
   return (
     <div className="h-full overflow-y-auto scrollbar-none p-4 md:p-6 space-y-4 md:space-y-6">
 
-      {/* ── Hero Banner ── */}
+      {/* ── 메인 배너 영역 (Hero Banner) ── */}
       <div
         className="relative rounded-2xl overflow-hidden p-5 md:p-8"
         style={{
@@ -87,7 +95,7 @@ export function Home() {
           boxShadow: c.cardShadow,
         }}
       >
-        {/* Grid pattern */}
+        {/* 배경에 깔리는 은은한 격자 무늬 */}
         <div
           className="absolute inset-0 opacity-[0.04]"
           style={{
