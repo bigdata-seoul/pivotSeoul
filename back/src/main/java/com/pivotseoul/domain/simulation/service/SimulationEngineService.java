@@ -5,7 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pivotseoul.domain.ai.service.AiGatewayService;
 import com.pivotseoul.domain.simulation.dto.RunSimulationRequest;
 import com.pivotseoul.domain.simulation.dto.RunSimulationResponse;
+import com.pivotseoul.domain.simulation.entity.Scenario;
 import com.pivotseoul.domain.simulation.entity.SimulationRun;
+import com.pivotseoul.domain.simulation.repository.ScenarioRepository;
 import com.pivotseoul.domain.simulation.repository.SimulationRunRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -23,16 +25,22 @@ public class SimulationEngineService {
     private final ObjectMapper objectMapper;
     private final SimulationRunRepository simulationRunRepository;
     private final CalculationLogService calculationLogService;
+    private final SimulationResultSaveService simulationResultSaveService;
+    private final ScenarioRepository scenarioRepository;
 
     public SimulationEngineService(
             AiGatewayService aiGatewayService,
             ObjectMapper objectMapper,
             SimulationRunRepository simulationRunRepository,
-            CalculationLogService calculationLogService) {
+            CalculationLogService calculationLogService,
+            SimulationResultSaveService simulationResultSaveService,
+            ScenarioRepository scenarioRepository) {
         this.aiGatewayService = aiGatewayService;
         this.objectMapper = objectMapper;
         this.simulationRunRepository = simulationRunRepository;
         this.calculationLogService = calculationLogService;
+        this.simulationResultSaveService = simulationResultSaveService;
+        this.scenarioRepository = scenarioRepository;
     }
 
     public ResponseEntity<RunSimulationResponse> runSimulation(
@@ -88,6 +96,13 @@ public class SimulationEngineService {
                 aiRequestBody,
                 aiResult);
 
+        Long scenarioId = resolveScenarioId(numericSessionId);
+
+        simulationResultSaveService.saveHousingResult(
+                simulationRun.getSimulationRunId(),
+                scenarioId,
+                aiResult);
+
         RunSimulationResponse.ThresholdResultItem housingThreshold = new RunSimulationResponse.ThresholdResultItem(
                 "HOUSING",
                 rir,
@@ -117,6 +132,15 @@ public class SimulationEngineService {
         simulationRun.setStartedAt(Instant.now());
 
         return simulationRunRepository.save(simulationRun);
+    }
+
+    private Long resolveScenarioId(Long sessionId) {
+        Scenario scenario = scenarioRepository
+                .findFirstBySessionIdOrderByDisplayOrderAscScenarioIdAsc(sessionId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Scenario is not initialized for sessionId=" + sessionId));
+
+        return scenario.getScenarioId();
     }
 
     private Long parseSessionId(String sessionId) {

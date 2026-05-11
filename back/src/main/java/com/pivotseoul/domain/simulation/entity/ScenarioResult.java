@@ -60,7 +60,7 @@ public class ScenarioResult {
     @Column(name = "senior_sustainability_score", precision = 14, scale = 6)
     private BigDecimal seniorSustainabilityScore;
 
-    protected ScenarioResult() {
+    public ScenarioResult() {
     }
 
     public Long getScenarioResultId() {

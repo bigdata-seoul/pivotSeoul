@@ -39,7 +39,7 @@ public class ThresholdResult {
     @Column(name = "calculation_summary", columnDefinition = "TEXT")
     private String calculationSummary;
 
-    protected ThresholdResult() {
+    public ThresholdResult() {
     }
 
     public Long getThresholdResultId() {
