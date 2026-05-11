@@ -14,3 +14,5 @@ class HousingResult(BaseModel):
     rir: float | None = None
     housing_status: str = "pending"
     is_red_zone: bool = False
+    risk_score: int | None = None
+    confidence_score: float | None = None

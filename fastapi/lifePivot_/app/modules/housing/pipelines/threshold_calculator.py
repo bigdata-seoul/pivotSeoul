@@ -15,11 +15,6 @@ def calculate_rir(monthly_income: int | None, monthly_housing_cost: int | None) 
 def classify_housing_status(rir: float | None) -> tuple[str, bool]:
     """
     RIR 기준으로 주거비 부담 상태를 분류한다.
-
-    기준:
-    - 0.30 이하: stable
-    - 0.30 초과 ~ 0.40 이하: warning
-    - 0.40 초과: danger / red zone
     """
     if rir is None:
         return "unknown", False
@@ -31,3 +26,29 @@ def classify_housing_status(rir: float | None) -> tuple[str, bool]:
         return "warning", False
 
     return "danger", True
+
+
+def calculate_housing_risk_score(rir: float | None) -> int:
+    """
+    RIR 기준 위험 점수를 계산한다.
+    """
+    if rir is None:
+        return 0
+
+    if rir <= 0.30:
+        return 20
+
+    if rir <= 0.40:
+        return 50
+
+    return 80
+
+
+def calculate_confidence_score(rir: float | None) -> float:
+    """
+    MVP 단계의 규칙 기반 신뢰도 점수.
+    """
+    if rir is None:
+        return 0.3
+
+    return 0.85
