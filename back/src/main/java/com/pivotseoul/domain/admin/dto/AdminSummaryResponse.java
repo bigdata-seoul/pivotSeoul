@@ -1,4 +1,9 @@
 package com.pivotseoul.domain.admin.dto;
 
-public class AdminSummaryResponse {
+public record AdminSummaryResponse(
+        long activeUsers,
+        long totalSimulations,
+        double averageRiskScore,
+        double errorRate
+) {
 }
