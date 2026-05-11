@@ -12,7 +12,7 @@
 | **AI 계산·파이프라인** | 주거/커리어 등 **추론·RAG·점수** | `/api/ai/*` → FastAPI `/api/v1/*` | 게이트웨이: `domain/ai` |
 | **운영·영속** | 세션·시나리오·결과 **DB** | `/api/simulation/*`, `/api/user/*`, `/api/data/*` … | 도메인 컨트롤러·Flyway 스키마 |
 
-설계상 **화면에 보이는 최종 결과**는 나중에 “AI JSON → Spring 검증·저장 → 조회 API”로 합치면 된다. 지금은 **게이트웨이(AI)** 와 **시뮬레이션 API(스텁)** 가 **분리**되어 있다.
+현재 결과 화면은 **`POST /api/simulation/runs` 운영 API** 를 호출한다. Spring `SimulationEngineService`가 내부에서 `/api/ai/*` 게이트웨이와 FastAPI `/api/v1/*` 모듈들을 호출해 결과를 모은다. 단, DB 영속화는 아직 `memory-only` latestRun 단계이며, 이후 entity/repository 매핑으로 교체한다.
 
 ---
 
@@ -47,13 +47,14 @@
 
 | 상태 | 설명 |
 |------|------|
-| **라이브러리만 존재** | `front/src/lib/pivot-api.ts` — **페이지·컨텍스트에서 아직 import 하는 곳은 거의 없음** |
-| **로컬 전용 로직** | `PivotContext.tsx` 의 `calculateRisk` 등 — **브라우저 안 계산**, 백/AI 미호출 |
+| **운영 API 호출** | `PivotContext.tsx`의 `runAiAnalysis()`가 `POST /api/simulation/runs`를 호출 |
+| **로컬 대체 계산** | `calculateRisk`는 요청 payload와 UI fallback 점수용으로 유지 |
 
 리팩터링 시 권장:
 
-1. 화면별로 `pivot-api`의 해당 함수만 호출 (예: 주거 카드 → `housingAnalyze`).
-2. 이후 단계에서 Spring `domain/simulation` 저장 API와 묶을 때, **입력 DTO·세션 ID**를 일치시키기.
+1. 화면은 우선 `runIntegratedSimulation()`만 호출한다.
+2. Spring `SimulationEngineService`가 기능별 AI 호출을 담당한다.
+3. 다음 단계에서 `backendVerification` 이후 결과를 `ScenarioResult`, `ThresholdResult`, `RecommendationCandidate`, `WeeklyAction`, `CalculationLog`에 저장한다.
 
 ---
 
@@ -61,7 +62,7 @@
 
 | Spring 베이스 | 용도 (의도) | 현재 코드 |
 |---------------|-------------|-----------|
-| `/api/simulation/*` | 세션·시나리오·run·결과·임계점 등 | 컨트롤러 클래스는 있으나 **대부분 빈 스텁** |
+| `/api/simulation/*` | 세션·시나리오·run·결과·임계점 등 | `/runs`, `/sessions`, `/results/latest`가 Spring→AI 연결 진입점으로 동작. DB 저장은 아직 memory-only |
 | `/api/user/*` | 생애단계·자치구 마스터 | 스텁 수준 |
 | `/api/data/*` | 데이터셋 레지스트리(운영 DB) | 스텁 수준 |
 

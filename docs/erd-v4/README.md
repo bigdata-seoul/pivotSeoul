@@ -33,13 +33,18 @@
 | [08-llm-audit.md](./08-llm-audit.md) | §8 LLM/계산 검증/로그 |
 | [09-priority.md](./09-priority.md) | §9 구현 우선순위 |
 | [10-summary.md](./10-summary.md) | §10 최종 정리 · §11 ERD 읽는 법 |
+| [11-schema-backend-ai.md](./11-schema-backend-ai.md) | §12 스키마 개념 · §13 Backend/AI 분리 설계 |
+| [12-backend-package-layout.md](./12-backend-package-layout.md) | §14 Spring Backend package layout |
+| [13-fastapi-structure.md](./13-fastapi-structure.md) | §15 AI FastAPI 상세 구조 |
+| [14-front-backend-ai-flow.md](./14-front-backend-ai-flow.md) | §16 Front → Backend → AI 전체 흐름도 |
 
 ---
 
 ## 레포·구현 참고
 
 - DB 마이그레이션: `back/src/main/resources/db/migration/` (현재 Phase 1은 공통 시뮬레이션 코어)
-- Spring 패키지 규칙: `back/STRUCTURE.md`
-- FastAPI 기능 폴더: `fastapi/lifePivot_/README.md`
+- Spring 패키지 규칙: `back/STRUCTURE.md`, [12-backend-package-layout.md](./12-backend-package-layout.md)
+- FastAPI 기능 폴더: `fastapi/lifePivot_/README.md`, [13-fastapi-structure.md](./13-fastapi-structure.md)
+- Front → Backend → AI 흐름도: [14-front-backend-ai-flow.md](./14-front-backend-ai-flow.md)
 
 이전 단일 요약본: [../ERD-v4-feature-based.md](../ERD-v4-feature-based.md) (이 목차를 가리키도록 갱신됨)

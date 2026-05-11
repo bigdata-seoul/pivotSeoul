@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useState } from 'react';
+import {
+  runIntegratedSimulation,
+  type AiGatewayStatus,
+  type IntegratedSimulationRun,
+  type SimulationPayload,
+} from '../lib/pivot-api';
 
 export type LifeStage = 'youth' | 'family' | 'senior';
 
@@ -40,6 +46,22 @@ export interface RiskAnalysis {
   surplusStatus: 'safe' | 'warning' | 'danger';
 }
 
+// ===== AI 분석 상태 섹션 =====
+// Spring /api/simulation/runs 응답을 UI가 바로 읽을 수 있도록 평탄화해 보관합니다.
+export interface AiAnalysisState {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  error?: string;
+  gatewayStatus?: AiGatewayStatus;
+  scenarioA?: unknown;
+  scenarioB?: unknown;
+  modules?: Record<string, unknown>;
+  explanation?: unknown;
+  dataSources?: unknown;
+  backendRun?: IntegratedSimulationRun;
+  backendVerification?: unknown;
+  lastUpdated?: string;
+}
+
 interface PivotContextType {
   profile: UserProfile;
   updateProfile: (updates: Partial<UserProfile>) => void;
@@ -52,8 +74,11 @@ interface PivotContextType {
   isOnboarded: boolean;
   setIsOnboarded: (v: boolean) => void;
   calculateRisk: (scenario: ScenarioConditions, income: number) => RiskAnalysis;
+  aiAnalysis: AiAnalysisState;
+  runAiAnalysis: () => Promise<AiAnalysisState>;
 }
 
+// ===== 기본 입력값 섹션: 데모/초기 화면에서 사용할 비식별 예시 값 =====
 const defaultProfile: UserProfile = {
   lifeStage: null,
   name: '김서울',
@@ -94,12 +119,12 @@ const defaultScenarioB: ScenarioConditions = {
 const PivotContext = createContext<PivotContextType | null>(null);
 
 /**
- * Lightweight domain risk engine for prototype UI.
+ * 프로토타입 UI용 가벼운 도메인 리스크 계산기입니다.
  *
- * NOTE:
- * - This function is intentionally deterministic and local-only.
- * - Backend integration should replace fixed constants with model outputs
- *   while preserving return shape (`RiskAnalysis`) for UI compatibility.
+ * 참고:
+ * - 이 함수는 의도적으로 결정적이며 로컬에서만 동작합니다.
+ * - 백엔드 연동 시 UI 호환성을 위해 반환 형태(`RiskAnalysis`)는 유지하고,
+ *   고정 상수만 모델 출력값으로 교체하면 됩니다.
  */
 function calculateRisk(scenario: ScenarioConditions, income: number): RiskAnalysis {
   const housingRatio = (scenario.monthlyHousing / income) * 100;
@@ -141,17 +166,116 @@ function calculateRisk(scenario: ScenarioConditions, income: number): RiskAnalys
   };
 }
 
+// ===== 요청 변환 섹션: UI 상태를 FastAPI가 이해하는 생애단계별 payload로 바꿉니다. =====
+function targetJobFor(stage: LifeStage | null): string {
+  if (stage === 'senior') return '노후 생활 안정';
+  if (stage === 'family') return '복직 및 돌봄 병행';
+  return '커리어 전환';
+}
+
+function childAgeFor(profile: UserProfile): number | null {
+  if (profile.lifeStage !== 'family') return null;
+  return Math.max(0, Math.min(7, 7 - Math.round(profile.returnToWorkMonths / 3)));
+}
+
+function toSimulationPayload(profile: UserProfile, scenario: ScenarioConditions): SimulationPayload {
+  return {
+    life_stage: profile.lifeStage ?? 'family',
+    district: scenario.district,
+    monthly_income: profile.monthlyIncome,
+    target_job: targetJobFor(profile.lifeStage),
+    weekly_study_hours: profile.lifeStage === 'youth' ? 8 : 2,
+    child_age: childAgeFor(profile),
+  };
+}
+
+// ===== 응답 정규화 섹션: Spring run 결과 envelope에서 body/errors만 꺼내 UI 상태로 변환합니다. =====
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function settledValue(result: PromiseSettledResult<unknown>): unknown {
+  return result.status === 'fulfilled' ? result.value : undefined;
+}
+
+function settledError(result: PromiseSettledResult<unknown>): string | undefined {
+  return result.status === 'rejected' ? errorMessage(result.reason) : undefined;
+}
+
+function responseBody(value: unknown): unknown {
+  if (!value || typeof value !== 'object') return value;
+  const body = (value as Record<string, unknown>).body;
+  return body === undefined ? value : body;
+}
+
+function responseError(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const errors = (value as Record<string, unknown>).errors;
+  return Array.isArray(errors) && errors.length ? JSON.stringify(errors) : undefined;
+}
+
+// ===== Provider 섹션: 입력 상태, 로컬 fallback 계산, Spring 통합 실행을 화면에 제공합니다. =====
 export const PivotProvider = ({ children }: { children: React.ReactNode }) => {
   const [profile, setProfile] = useState<UserProfile>(defaultProfile);
   const [scenarioA, setScenarioA] = useState<ScenarioConditions>(defaultScenarioA);
   const [scenarioB, setScenarioB] = useState<ScenarioConditions>(defaultScenarioB);
   const [currentStep, setCurrentStep] = useState(0);
   const [isOnboarded, setIsOnboarded] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<AiAnalysisState>({ status: 'idle' });
 
-  // Partial updates keep form pages decoupled: each page only patches fields it owns.
+  // 부분 업데이트로 각 입력 화면을 분리합니다. 각 화면은 자신이 담당하는 필드만 수정합니다.
   const updateProfile = (updates: Partial<UserProfile>) => setProfile(prev => ({ ...prev, ...updates }));
   const updateScenarioA = (updates: Partial<ScenarioConditions>) => setScenarioA(prev => ({ ...prev, ...updates }));
   const updateScenarioB = (updates: Partial<ScenarioConditions>) => setScenarioB(prev => ({ ...prev, ...updates }));
+
+  const runAiAnalysis = useCallback(async (): Promise<AiAnalysisState> => {
+    setAiAnalysis(prev => ({ ...prev, status: 'loading', error: undefined }));
+
+    const payloadA = toSimulationPayload(profile, scenarioA);
+    const payloadB = toSimulationPayload(profile, scenarioB);
+    const riskA = calculateRisk(scenarioA, profile.monthlyIncome);
+    const riskB = calculateRisk(scenarioB, profile.monthlyIncome);
+
+    // 프론트는 운영 API(`/api/simulation/runs`)만 호출합니다.
+    // Spring이 내부에서 AI 게이트웨이와 FastAPI 모듈들을 모두 호출하고, 결과를 검증/정규화한 형태로 돌려줍니다.
+    const [backendRun] = await Promise.allSettled([
+      runIntegratedSimulation({
+        profile,
+        scenarioA,
+        scenarioB,
+        scenarioPayloads: { A: payloadA, B: payloadB },
+        localRisk: { A: riskA, B: riskB },
+      }),
+    ]);
+
+    const backendValue = settledValue(backendRun) as IntegratedSimulationRun | undefined;
+    const errors = [
+      settledError(backendRun),
+      responseError(backendValue),
+    ].filter(Boolean);
+
+    // Spring 응답은 모듈별 `{ httpStatus, ok, body }` envelope이므로
+    // 화면이 쓰기 쉽게 body만 꺼내고, run 메타는 backendRun에 그대로 보존합니다.
+    const next: AiAnalysisState = {
+      status: errors.length ? 'error' : 'success',
+      error: errors.join(' | ') || undefined,
+      gatewayStatus: backendValue?.gatewayStatus,
+      scenarioA: responseBody(backendValue?.ai?.scenarioA),
+      scenarioB: responseBody(backendValue?.ai?.scenarioB),
+      modules: Object.entries(backendValue?.ai?.modules ?? {}).reduce<Record<string, unknown>>((acc, [key, value]) => {
+        acc[key] = responseBody(value);
+        return acc;
+      }, {}),
+      explanation: responseBody(backendValue?.ai?.explanation),
+      dataSources: responseBody(backendValue?.ai?.dataSources),
+      backendRun: backendValue,
+      backendVerification: backendValue?.backendVerification,
+      lastUpdated: new Date().toISOString(),
+    };
+
+    setAiAnalysis(next);
+    return next;
+  }, [profile, scenarioA, scenarioB]);
 
   return (
     <PivotContext.Provider value={{
@@ -160,6 +284,7 @@ export const PivotProvider = ({ children }: { children: React.ReactNode }) => {
       currentStep, setCurrentStep,
       isOnboarded, setIsOnboarded,
       calculateRisk,
+      aiAnalysis, runAiAnalysis,
     }}>
       {children}
     </PivotContext.Provider>

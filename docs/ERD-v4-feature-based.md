@@ -9,6 +9,10 @@
 | 주거 ~ LLM/로그 | 동일 폴더 `02` ~ `08` |
 | 구현 우선순위 | [erd-v4/09-priority.md](./erd-v4/09-priority.md) |
 | 최종 정리·ERD 읽는 법 | [erd-v4/10-summary.md](./erd-v4/10-summary.md) |
+| 스키마·Backend/AI 분리 설계 | [erd-v4/11-schema-backend-ai.md](./erd-v4/11-schema-backend-ai.md) |
+| Spring Backend package layout | [erd-v4/12-backend-package-layout.md](./erd-v4/12-backend-package-layout.md) |
+| AI FastAPI 상세 구조 | [erd-v4/13-fastapi-structure.md](./erd-v4/13-fastapi-structure.md) |
+| Front → Backend → AI 전체 흐름도 | [erd-v4/14-front-backend-ai-flow.md](./erd-v4/14-front-backend-ai-flow.md) |
 
 ---
 
@@ -19,4 +23,4 @@
 - **Spring 패키지:** `back/STRUCTURE.md`
 - **FastAPI:** `fastapi/lifePivot_/README.md`
 
-데이터 흐름: Frontend → Spring(검증·저장) → FastAPI(계산·RAG·LLM) → Spring(검증·저장) → Frontend.
+데이터 흐름: Frontend → Spring(검증·저장) → FastAPI(계산·RAG·LLM) → Spring(검증·저장) → Frontend. 상세 시퀀스와 아키텍처 그림은 [erd-v4/14-front-backend-ai-flow.md](./erd-v4/14-front-backend-ai-flow.md)에 정리했다.
