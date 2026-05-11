@@ -1,9 +1,16 @@
 package com.pivotseoul.domain.simulation.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class RunSimulationRequest {
 
     private String district;
-    private Integer monthly_income;
+
+    @JsonProperty("monthly_income")
+    private Integer monthlyIncome;
+
+    @JsonProperty("monthly_housing_cost")
+    private Integer monthlyHousingCost;
 
     public RunSimulationRequest() {
     }
@@ -16,11 +23,19 @@ public class RunSimulationRequest {
         this.district = district;
     }
 
-    public Integer getMonthly_income() {
-        return monthly_income;
+    public Integer getMonthlyIncome() {
+        return monthlyIncome;
     }
 
-    public void setMonthly_income(Integer monthly_income) {
-        this.monthly_income = monthly_income;
+    public void setMonthlyIncome(Integer monthlyIncome) {
+        this.monthlyIncome = monthlyIncome;
+    }
+
+    public Integer getMonthlyHousingCost() {
+        return monthlyHousingCost;
+    }
+
+    public void setMonthlyHousingCost(Integer monthlyHousingCost) {
+        this.monthlyHousingCost = monthlyHousingCost;
     }
 }
