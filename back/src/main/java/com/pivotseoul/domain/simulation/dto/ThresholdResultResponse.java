@@ -1,4 +1,14 @@
 package com.pivotseoul.domain.simulation.dto;
 
-public class ThresholdResultResponse {
+import java.math.BigDecimal;
+
+public record ThresholdResultResponse(
+        Long thresholdResultId,
+        Long thresholdTypeId,
+        String status,
+        BigDecimal calculatedValue,
+        BigDecimal thresholdValue,
+        boolean redZone,
+        String summary
+) {
 }
