@@ -10,6 +10,7 @@ import { OnboardingFamily } from './pages/OnboardingFamily';
 import { OnboardingSenior } from './pages/OnboardingSenior';
 import { Scenario } from './pages/Scenario';
 import { Results } from './pages/Results';
+import { SimulationRun } from './pages/SimulationRun';
 
 // Admin pages
 import { AdminLogin } from './pages/admin-AdminLogin';
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
       { path: 'onboarding/family', Component: OnboardingFamily },
       { path: 'onboarding/senior', Component: OnboardingSenior },
       { path: 'scenario', Component: Scenario },
+      { path: 'simulation-run', Component: SimulationRun },
       { path: 'results', Component: Results },
     ],
   },
