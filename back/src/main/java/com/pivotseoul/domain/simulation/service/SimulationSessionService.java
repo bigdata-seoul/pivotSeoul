@@ -2,23 +2,30 @@ package com.pivotseoul.domain.simulation.service;
 
 import com.pivotseoul.domain.simulation.dto.CreateSessionRequest;
 import com.pivotseoul.domain.simulation.dto.CreateSessionResponse;
-import com.pivotseoul.domain.simulation.entity.LifeStage;
 import com.pivotseoul.domain.simulation.entity.SimulationSession;
 import com.pivotseoul.domain.simulation.entity.UserCondition;
-import com.pivotseoul.domain.simulation.repository.LifeStageRepository;
 import com.pivotseoul.domain.simulation.repository.SimulationSessionRepository;
-import lombok.RequiredArgsConstructor;
+import com.pivotseoul.domain.user.entity.LifeStage;
+import com.pivotseoul.domain.user.repository.LifeStageRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class SimulationSessionService {
 
     private final LifeStageRepository lifeStageRepository;
     private final SimulationSessionRepository simulationSessionRepository;
+
+    public SimulationSessionService(
+            LifeStageRepository lifeStageRepository,
+            SimulationSessionRepository simulationSessionRepository
+    ) {
+        this.lifeStageRepository = lifeStageRepository;
+        this.simulationSessionRepository = simulationSessionRepository;
+    }
 
     @Transactional
     public CreateSessionResponse createSession(CreateSessionRequest request) {
@@ -28,26 +35,29 @@ public class SimulationSessionService {
 
         // 2. SimulationSession 생성 (session_uuid 발급)
         String sessionUuid = UUID.randomUUID().toString();
-        SimulationSession session = SimulationSession.builder()
-                .sessionUuid(sessionUuid)
-                .lifeStage(lifeStage)
-                .sessionStatus("CREATED")
-                .build();
+        SimulationSession session = SimulationSession.create(
+                sessionUuid,
+                lifeStage,
+                null,
+                "CREATED",
+                false,
+                Instant.now()
+        );
 
         // 3. UserCondition 생성 및 연관관계 매핑
-        UserCondition userCondition = UserCondition.builder()
-                .simulationSession(session)
-                .currentDistrict(request.currentDistrict())
-                .compareDistrict(request.compareDistrict())
-                .monthlyIncome(request.monthlyIncome())
-                .monthlyHousing(request.monthlyHousing())
-                .monthlyLiving(request.monthlyLiving())
-                .commuteTime(request.commuteTime())
-                .childcareCost(request.childcareCost())
-                .returnToWorkMonths(request.returnToWorkMonths())
-                .retirementAge(request.retirementAge())
-                .savings(request.savings())
-                .build();
+        UserCondition userCondition = new UserCondition(
+                session,
+                request.currentDistrict(),
+                request.compareDistrict(),
+                request.monthlyIncome(),
+                request.monthlyHousing(),
+                request.monthlyLiving(),
+                request.commuteTime(),
+                request.childcareCost(),
+                request.returnToWorkMonths(),
+                request.retirementAge(),
+                request.savings()
+        );
 
         session.setUserCondition(userCondition);
 

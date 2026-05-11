@@ -1,15 +1,9 @@
 package com.pivotseoul.domain.simulation.entity;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "user_condition")
-@Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class UserCondition {
 
     @Id
@@ -32,7 +26,9 @@ public class UserCondition {
     private Integer retirementAge;
     private Integer savings;
 
-    @Builder
+    protected UserCondition() {
+    }
+
     public UserCondition(SimulationSession simulationSession, String currentDistrict, String compareDistrict, 
                          Integer monthlyIncome, Integer monthlyHousing, Integer monthlyLiving, 
                          Integer commuteTime, Integer childcareCost, Integer returnToWorkMonths, 
@@ -48,5 +44,57 @@ public class UserCondition {
         this.returnToWorkMonths = returnToWorkMonths;
         this.retirementAge = retirementAge;
         this.savings = savings;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public SimulationSession getSimulationSession() {
+        return simulationSession;
+    }
+
+    public void setSimulationSession(SimulationSession simulationSession) {
+        this.simulationSession = simulationSession;
+    }
+
+    public String getCurrentDistrict() {
+        return currentDistrict;
+    }
+
+    public String getCompareDistrict() {
+        return compareDistrict;
+    }
+
+    public Integer getMonthlyIncome() {
+        return monthlyIncome;
+    }
+
+    public Integer getMonthlyHousing() {
+        return monthlyHousing;
+    }
+
+    public Integer getMonthlyLiving() {
+        return monthlyLiving;
+    }
+
+    public Integer getCommuteTime() {
+        return commuteTime;
+    }
+
+    public Integer getChildcareCost() {
+        return childcareCost;
+    }
+
+    public Integer getReturnToWorkMonths() {
+        return returnToWorkMonths;
+    }
+
+    public Integer getRetirementAge() {
+        return retirementAge;
+    }
+
+    public Integer getSavings() {
+        return savings;
     }
 }
