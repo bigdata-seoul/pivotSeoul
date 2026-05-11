@@ -32,6 +32,21 @@ public class SimulationEngineService {
         ResponseEntity<JsonNode> aiResponse = aiGatewayService.housingAnalyze(aiRequestBody);
         JsonNode aiResult = aiResponse.getBody();
 
+        boolean success = aiResponse.getStatusCode().is2xxSuccessful();
+
+        if (!success) {
+            RunSimulationResponse failedResponse = new RunSimulationResponse(
+                    sessionId,
+                    "FAILED",
+                    "UNKNOWN",
+                    0,
+                    0.0,
+                    List.of(),
+                    aiResult);
+
+            return ResponseEntity.status(aiResponse.getStatusCode()).body(failedResponse);
+        }
+
         String resultStatus = extractText(aiResult, "housing_status", "UNKNOWN").toUpperCase();
         Integer riskScore = extractInt(aiResult, "risk_score", 0);
         Double confidenceScore = extractDouble(aiResult, "confidence_score", 0.0);
@@ -61,6 +76,7 @@ public class SimulationEngineService {
         if (node == null || node.get(fieldName) == null || node.get(fieldName).isNull()) {
             return defaultValue;
         }
+
         return node.get(fieldName).asText(defaultValue);
     }
 
@@ -68,6 +84,7 @@ public class SimulationEngineService {
         if (node == null || node.get(fieldName) == null || node.get(fieldName).isNull()) {
             return defaultValue;
         }
+
         return node.get(fieldName).asInt(defaultValue);
     }
 
@@ -75,6 +92,7 @@ public class SimulationEngineService {
         if (node == null || node.get(fieldName) == null || node.get(fieldName).isNull()) {
             return defaultValue;
         }
+
         return node.get(fieldName).asDouble();
     }
 
@@ -82,6 +100,7 @@ public class SimulationEngineService {
         if (node == null || node.get(fieldName) == null || node.get(fieldName).isNull()) {
             return defaultValue;
         }
+
         return node.get(fieldName).asBoolean(defaultValue);
     }
 }

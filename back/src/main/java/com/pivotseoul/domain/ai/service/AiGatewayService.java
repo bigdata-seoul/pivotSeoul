@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
@@ -19,7 +20,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * FastAPI({@code lifePivot_}) 기능 모듈로 HTTP 프록시 — Spring이 검증·영속 경계를 유지하면서 계산은 업스트림에 위임.
+ * FastAPI(lifePivot_) 기능 모듈로 HTTP 프록시.
+ * Spring은 요청 검증·응답 표준화·영속성 경계를 유지하고,
+ * 실제 계산은 FastAPI 업스트림에 위임한다.
  */
 @Service
 public class AiGatewayService {
@@ -34,7 +37,6 @@ public class AiGatewayService {
             @Qualifier("aiRestTemplate") RestTemplate aiRestTemplate,
             ObjectMapper objectMapper,
             @Value("${pivotseoul.ai.fastapi-base-url:http://127.0.0.1:8000}") String fastApiBaseUrl) {
-
         this.aiRestTemplate = aiRestTemplate;
         this.objectMapper = objectMapper;
         this.fastApiBaseUrl = trimTrailingSlash(fastApiBaseUrl);
@@ -44,6 +46,7 @@ public class AiGatewayService {
         if (url == null || url.isEmpty()) {
             return "http://127.0.0.1:8000";
         }
+
         return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
 
@@ -54,10 +57,18 @@ public class AiGatewayService {
     public ResponseEntity<JsonNode> postJson(String fastApiPath, JsonNode body) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+
         JsonNode payload = body != null ? body : objectMapper.createObjectNode();
         HttpEntity<JsonNode> entity = new HttpEntity<>(payload, headers);
+
         try {
-            return aiRestTemplate.exchange(url(fastApiPath), HttpMethod.POST, entity, JsonNode.class);
+            return aiRestTemplate.exchange(
+                    url(fastApiPath),
+                    HttpMethod.POST,
+                    entity,
+                    JsonNode.class);
+        } catch (HttpStatusCodeException e) {
+            return upstreamError(e);
         } catch (ResourceAccessException e) {
             return unreachable(e);
         }
@@ -65,7 +76,13 @@ public class AiGatewayService {
 
     public ResponseEntity<JsonNode> getJson(String fastApiPath) {
         try {
-            return aiRestTemplate.exchange(url(fastApiPath), HttpMethod.GET, null, JsonNode.class);
+            return aiRestTemplate.exchange(
+                    url(fastApiPath),
+                    HttpMethod.GET,
+                    null,
+                    JsonNode.class);
+        } catch (HttpStatusCodeException e) {
+            return upstreamError(e);
         } catch (ResourceAccessException e) {
             return unreachable(e);
         }
@@ -76,22 +93,39 @@ public class AiGatewayService {
         err.put("error", "FASTAPI_UNREACHABLE");
         err.put("detail", e.getMessage());
         err.put("upstream", fastApiBaseUrl);
+
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(err);
     }
 
-    /** 게이트웨이 메타 + FastAPI {@code /health} 가용성 */
+    private ResponseEntity<JsonNode> upstreamError(HttpStatusCodeException e) {
+        ObjectNode err = objectMapper.createObjectNode();
+        err.put("error", "FASTAPI_ERROR");
+        err.put("status", e.getStatusCode().value());
+        err.put("detail", e.getResponseBodyAsString());
+        err.put("upstream", fastApiBaseUrl);
+
+        return ResponseEntity.status(e.getStatusCode()).body(err);
+    }
+
+    /**
+     * Gateway 상태와 FastAPI health 상태를 확인한다.
+     */
     public Map<String, Object> bridgeStatus() {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("role", "gateway");
         m.put("fastapiBaseUrl", fastApiBaseUrl);
         m.put("pipelines", "fastapi/lifePivot_/app/modules/*/pipelines");
+
         try {
-            ResponseEntity<String> health = aiRestTemplate.getForEntity(url("/health"), String.class);
+            ResponseEntity<String> health = aiRestTemplate.getForEntity(
+                    url("/health"),
+                    String.class);
             m.put("fastapiHealthHttpStatus", health.getStatusCode().value());
         } catch (Exception e) {
             m.put("fastapiHealthHttpStatus", "down");
             m.put("fastapiHealthError", e.getMessage());
         }
+
         return m;
     }
 
