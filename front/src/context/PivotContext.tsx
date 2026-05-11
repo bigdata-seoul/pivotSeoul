@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import {
   runIntegratedSimulation,
   type AiGatewayStatus,
@@ -63,6 +63,8 @@ export interface AiAnalysisState {
 }
 
 interface PivotContextType {
+  sessionId: number | null;
+  setSessionId: (sessionId: number | null) => void;
   profile: UserProfile;
   updateProfile: (updates: Partial<UserProfile>) => void;
   scenarioA: ScenarioConditions;
@@ -117,6 +119,22 @@ const defaultScenarioB: ScenarioConditions = {
 };
 
 const PivotContext = createContext<PivotContextType | null>(null);
+const SESSION_ID_STORAGE_KEY = 'pivotseoul-session-id';
+
+function readStoredSessionId() {
+  if (typeof window === 'undefined') return null;
+
+  const storedSessionId = window.localStorage.getItem(SESSION_ID_STORAGE_KEY);
+  if (!storedSessionId) return null;
+
+  const parsedSessionId = Number(storedSessionId);
+  if (Number.isFinite(parsedSessionId) && parsedSessionId > 0) {
+    return parsedSessionId;
+  }
+
+  window.localStorage.removeItem(SESSION_ID_STORAGE_KEY);
+  return null;
+}
 
 /**
  * 프로토타입 UI용 가벼운 도메인 리스크 계산기입니다.
@@ -216,12 +234,28 @@ function responseError(value: unknown): string | undefined {
 
 // ===== Provider 섹션: 입력 상태, 로컬 fallback 계산, Spring 통합 실행을 화면에 제공합니다. =====
 export const PivotProvider = ({ children }: { children: React.ReactNode }) => {
+  const [sessionId, setSessionIdState] = useState<number | null>(() => readStoredSessionId());
   const [profile, setProfile] = useState<UserProfile>(defaultProfile);
   const [scenarioA, setScenarioA] = useState<ScenarioConditions>(defaultScenarioA);
   const [scenarioB, setScenarioB] = useState<ScenarioConditions>(defaultScenarioB);
   const [currentStep, setCurrentStep] = useState(0);
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<AiAnalysisState>({ status: 'idle' });
+
+  useEffect(() => {
+    setSessionIdState(readStoredSessionId());
+  }, []);
+
+  const setSessionId = (nextSessionId: number | null) => {
+    setSessionIdState(nextSessionId);
+    if (typeof window === 'undefined') return;
+
+    if (nextSessionId) {
+      window.localStorage.setItem(SESSION_ID_STORAGE_KEY, String(nextSessionId));
+    } else {
+      window.localStorage.removeItem(SESSION_ID_STORAGE_KEY);
+    }
+  };
 
   // 부분 업데이트로 각 입력 화면을 분리합니다. 각 화면은 자신이 담당하는 필드만 수정합니다.
   const updateProfile = (updates: Partial<UserProfile>) => setProfile(prev => ({ ...prev, ...updates }));
@@ -279,6 +313,7 @@ export const PivotProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <PivotContext.Provider value={{
+      sessionId, setSessionId,
       profile, updateProfile,
       scenarioA, scenarioB, updateScenarioA, updateScenarioB,
       currentStep, setCurrentStep,

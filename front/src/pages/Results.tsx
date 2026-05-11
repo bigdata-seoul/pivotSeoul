@@ -12,6 +12,7 @@ import {
 import { usePivot } from '../context/PivotContext';
 import { useTheme } from '../context/ThemeContext';
 import { GaugeChart } from '../components/GaugeChart';
+import { getSimulationSession, SimulationSessionDetail } from '../lib/sessionApi';
 
 function generateCashFlow(income: number, housing: number, childcare: number, applyPolicy: boolean, extraIncome: number, months = 12) {
   const policyBonus = applyPolicy ? 30 : 0;
@@ -62,13 +63,20 @@ function readStringArrayField(value: unknown, field: string): string[] {
 }
 
 export function Results() {
-  const { profile, scenarioA, scenarioB, calculateRisk, aiAnalysis, runAiAnalysis } = usePivot();
+  const { profile, scenarioA, scenarioB, calculateRisk, aiAnalysis, runAiAnalysis, sessionId } = usePivot();
   const { c, isDark } = useTheme();
   const [checkedItems, setCheckedItems] = useState<number[]>([3]);
   const [activeTab, setActiveTab] = useState<'monthly' | 'cumulative'>('monthly');
+  const [sessionData, setSessionData] = useState<SimulationSessionDetail | null>(null);
 
-  const riskA = calculateRisk(scenarioA, profile.monthlyIncome);
-  const riskB = calculateRisk(scenarioB, profile.monthlyIncome);
+  // 백엔드에서 생성된 세션 데이터를 불러와 상태를 덮어씌움 (안전한 데이터 전달 보장)
+  useEffect(() => {
+    if (sessionId) {
+      getSimulationSession(sessionId)
+        .then(data => setSessionData(data))
+        .catch(err => console.error('세션 데이터를 불러오는데 실패했습니다:', err));
+    }
+  }, [sessionId]);
 
   useEffect(() => {
     void runAiAnalysis();
@@ -84,8 +92,26 @@ export function Results() {
   const gatewayHealth = aiAnalysis.gatewayStatus?.fastapiHealthHttpStatus;
   const backendRunStatus = aiAnalysis.backendRun?.runStatus;
 
-  const cashFlowA = generateCashFlow(profile.monthlyIncome, scenarioA.monthlyHousing, scenarioA.childcareCost, scenarioA.applyPolicy, scenarioA.extraIncome);
-  const cashFlowB = generateCashFlow(profile.monthlyIncome, scenarioB.monthlyHousing, scenarioB.childcareCost, scenarioB.applyPolicy, scenarioB.extraIncome);
+  // sessionData가 있으면 백엔드 데이터를, 없으면 로컬 profile을 폴백으로 사용
+  const safeProfile = sessionData ? sessionData.userCondition : profile;
+
+  const riskA = calculateRisk(scenarioA, safeProfile.monthlyIncome);
+  const riskB = calculateRisk(scenarioB, safeProfile.monthlyIncome);
+
+  const cashFlowA = generateCashFlow(
+    safeProfile.monthlyIncome,
+    scenarioA.monthlyHousing,
+    scenarioA.childcareCost,
+    scenarioA.applyPolicy,
+    scenarioA.extraIncome
+  );
+  const cashFlowB = generateCashFlow(
+    safeProfile.monthlyIncome,
+    scenarioB.monthlyHousing,
+    scenarioB.childcareCost,
+    scenarioB.applyPolicy,
+    scenarioB.extraIncome
+  );
 
   const combinedData = cashFlowA.map((d, i) => ({
     month: d.month,
@@ -122,7 +148,7 @@ export function Results() {
   const statusA = statusInfo(riskA.status);
   const statusB = statusInfo(riskB.status);
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) => {
     if (!active || !payload?.length) return null;
     return (
       <div className="px-3 py-2 rounded-xl"
