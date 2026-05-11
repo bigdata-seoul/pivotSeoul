@@ -2,6 +2,7 @@ import { RouterProvider } from 'react-router';
 import { router } from './routes';
 import { PivotProvider } from './context/PivotContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { Toaster } from 'sonner';
 
 /**
  * Front app composition root.
@@ -16,6 +17,7 @@ export default function App() {
     <ThemeProvider>
       <PivotProvider>
         <RouterProvider router={router} />
+        <Toaster position="top-center" richColors closeButton />
       </PivotProvider>
     </ThemeProvider>
   );

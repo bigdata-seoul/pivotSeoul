@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 export type LifeStage = 'youth' | 'family' | 'senior';
 
@@ -41,6 +41,8 @@ export interface RiskAnalysis {
 }
 
 interface PivotContextType {
+  sessionId: number | null;
+  setSessionId: (sessionId: number | null) => void;
   profile: UserProfile;
   updateProfile: (updates: Partial<UserProfile>) => void;
   scenarioA: ScenarioConditions;
@@ -92,6 +94,22 @@ const defaultScenarioB: ScenarioConditions = {
 };
 
 const PivotContext = createContext<PivotContextType | null>(null);
+const SESSION_ID_STORAGE_KEY = 'pivotseoul-session-id';
+
+function readStoredSessionId() {
+  if (typeof window === 'undefined') return null;
+
+  const storedSessionId = window.localStorage.getItem(SESSION_ID_STORAGE_KEY);
+  if (!storedSessionId) return null;
+
+  const parsedSessionId = Number(storedSessionId);
+  if (Number.isFinite(parsedSessionId) && parsedSessionId > 0) {
+    return parsedSessionId;
+  }
+
+  window.localStorage.removeItem(SESSION_ID_STORAGE_KEY);
+  return null;
+}
 
 /**
  * Lightweight domain risk engine for prototype UI.
@@ -142,11 +160,27 @@ function calculateRisk(scenario: ScenarioConditions, income: number): RiskAnalys
 }
 
 export const PivotProvider = ({ children }: { children: React.ReactNode }) => {
+  const [sessionId, setSessionIdState] = useState<number | null>(() => readStoredSessionId());
   const [profile, setProfile] = useState<UserProfile>(defaultProfile);
   const [scenarioA, setScenarioA] = useState<ScenarioConditions>(defaultScenarioA);
   const [scenarioB, setScenarioB] = useState<ScenarioConditions>(defaultScenarioB);
   const [currentStep, setCurrentStep] = useState(0);
   const [isOnboarded, setIsOnboarded] = useState(false);
+
+  useEffect(() => {
+    setSessionIdState(readStoredSessionId());
+  }, []);
+
+  const setSessionId = (nextSessionId: number | null) => {
+    setSessionIdState(nextSessionId);
+    if (typeof window === 'undefined') return;
+
+    if (nextSessionId) {
+      window.localStorage.setItem(SESSION_ID_STORAGE_KEY, String(nextSessionId));
+    } else {
+      window.localStorage.removeItem(SESSION_ID_STORAGE_KEY);
+    }
+  };
 
   // Partial updates keep form pages decoupled: each page only patches fields it owns.
   const updateProfile = (updates: Partial<UserProfile>) => setProfile(prev => ({ ...prev, ...updates }));
@@ -155,6 +189,7 @@ export const PivotProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <PivotContext.Provider value={{
+      sessionId, setSessionId,
       profile, updateProfile,
       scenarioA, scenarioB, updateScenarioA, updateScenarioB,
       currentStep, setCurrentStep,

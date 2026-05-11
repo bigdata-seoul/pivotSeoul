@@ -107,8 +107,8 @@ export function AdminNotices() {
       {/* Notices list */}
       <div className="space-y-2">
         {notices.map(notice => {
-          const ti = typeInfo[notice.type];
-          const si = statusInfo[notice.status];
+          const ti = typeInfo[notice.type as keyof typeof typeInfo];
+          const si = statusInfo[notice.status as keyof typeof statusInfo];
           return (
             <div key={notice.id}
               className="flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all"

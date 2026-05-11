@@ -5,6 +5,7 @@ import {
   CheckCircle2, Building2, Train, Baby, Briefcase
 } from 'lucide-react';
 import { usePivot } from '../context/PivotContext';
+import { createSimulationSession } from '../lib/sessionApi';
 
 const SEOUL_DISTRICTS = [
   '강남구', '강동구', '강북구', '강서구', '관악구', '광진구', '구로구', '금천구',
@@ -79,8 +80,9 @@ function SliderField({ label, value, min, max, step, unit, onChange, hint, color
 
 export function Onboarding() {
   const navigate = useNavigate();
-  const { profile, updateProfile, setIsOnboarded } = usePivot();
+  const { profile, updateProfile, setIsOnboarded, sessionId, setSessionId } = usePivot();
   const [step, setStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const lifeStageLabel: Record<string, string> = {
     youth: '청년기',
@@ -88,16 +90,43 @@ export function Onboarding() {
     senior: '노년기',
   };
 
-  const handleNext = () => {
+  const lifeStageCodeMap: Record<string, string> = {
+    youth: 'YOUTH',
+    family: 'FAMILY',
+    senior: 'SENIOR',
+  };
+
+  const handleNext = async () => {
     if (step < 3) {
       setStep(step + 1);
     } else {
-      setIsOnboarded(true);
-      updateProfile({
-        currentDistrict: profile.currentDistrict || '마포구',
-        compareDistrict: profile.compareDistrict || '노원구',
-      });
-      navigate('/scenario');
+      try {
+        setIsSubmitting(true);
+        if (!sessionId) {
+          const createdSession = await createSimulationSession({
+            lifeStageCode: profile.lifeStage ? lifeStageCodeMap[profile.lifeStage] : 'YOUTH',
+            currentDistrict: profile.currentDistrict,
+            compareDistrict: profile.compareDistrict,
+            monthlyIncome: profile.monthlyIncome,
+            monthlyHousing: profile.monthlyHousing,
+            monthlyLiving: profile.monthlyLiving,
+            commuteTime: profile.commuteTime,
+            childcareCost: profile.childcareCost,
+            returnToWorkMonths: profile.returnToWorkMonths,
+            retirementAge: profile.retirementAge,
+            savings: profile.savings,
+          });
+          setSessionId(createdSession.sessionId);
+        }
+        setIsOnboarded(true);
+        updateProfile({
+          currentDistrict: profile.currentDistrict || '마포구',
+          compareDistrict: profile.compareDistrict || '노원구',
+        });
+        navigate('/scenario');
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -467,6 +496,7 @@ export function Onboarding() {
 
         <button
           onClick={handleNext}
+          disabled={isSubmitting}
           className="flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all duration-200"
           style={{
             background: 'linear-gradient(135deg, #6366F1, #818CF8)',
@@ -474,9 +504,10 @@ export function Onboarding() {
             fontSize: '0.9rem',
             fontWeight: 600,
             boxShadow: '0 0 20px rgba(99,102,241,0.35)',
+            opacity: isSubmitting ? 0.7 : 1,
           }}
         >
-          {step === 3 ? 'A/B 시나리오 설정하기' : '다음 단계'}
+          {isSubmitting ? '세션 생성 중...' : step === 3 ? 'A/B 시나리오 설정하기' : '다음 단계'}
           <ChevronRight size={15} />
         </button>
       </div>
