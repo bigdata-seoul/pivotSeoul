@@ -1,10 +1,16 @@
 package com.pivotseoul.domain.simulation.entity;
 
+import com.pivotseoul.domain.user.entity.LifeStage;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
@@ -21,8 +27,9 @@ public class SimulationSession {
     @Column(name = "session_uuid", nullable = false, unique = true, length = 64)
     private String sessionUuid;
 
-    @Column(name = "life_stage_id", nullable = false)
-    private Long lifeStageId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "life_stage_id", nullable = false)
+    private LifeStage lifeStage;
 
     @Column(name = "anonymous_user_key_hash", length = 128)
     private String anonymousUserKeyHash;
@@ -39,7 +46,35 @@ public class SimulationSession {
     @Column(name = "expired_at")
     private Instant expiredAt;
 
+    @OneToOne(mappedBy = "simulationSession", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private UserCondition userCondition;
+
     protected SimulationSession() {
+    }
+
+    public static SimulationSession create(
+            String sessionUuid,
+            LifeStage lifeStage,
+            String anonymousUserKeyHash,
+            String sessionStatus,
+            boolean consentToSaveResult,
+            Instant createdAt
+    ) {
+        SimulationSession session = new SimulationSession();
+        session.setSessionUuid(sessionUuid);
+        session.setLifeStage(lifeStage);
+        session.setAnonymousUserKeyHash(anonymousUserKeyHash);
+        session.setSessionStatus(sessionStatus);
+        session.setConsentToSaveResult(consentToSaveResult);
+        session.setCreatedAt(createdAt);
+        return session;
+    }
+
+    public void updateUserCondition(UserCondition userCondition) {
+        this.userCondition = userCondition;
+        if (userCondition != null) {
+            userCondition.setSimulationSession(this);
+        }
     }
 
     public Long getSessionId() {
@@ -59,11 +94,15 @@ public class SimulationSession {
     }
 
     public Long getLifeStageId() {
-        return lifeStageId;
+        return lifeStage == null ? null : lifeStage.getLifeStageId();
     }
 
-    public void setLifeStageId(Long lifeStageId) {
-        this.lifeStageId = lifeStageId;
+    public LifeStage getLifeStage() {
+        return lifeStage;
+    }
+
+    public void setLifeStage(LifeStage lifeStage) {
+        this.lifeStage = lifeStage;
     }
 
     public String getAnonymousUserKeyHash() {
@@ -104,5 +143,13 @@ public class SimulationSession {
 
     public void setExpiredAt(Instant expiredAt) {
         this.expiredAt = expiredAt;
+    }
+
+    public UserCondition getUserCondition() {
+        return userCondition;
+    }
+
+    public void setUserCondition(UserCondition userCondition) {
+        updateUserCondition(userCondition);
     }
 }
