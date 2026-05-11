@@ -40,7 +40,7 @@ public class CalculationLog {
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
-    protected CalculationLog() {
+    public CalculationLog() {
     }
 
     public Long getAuditId() {

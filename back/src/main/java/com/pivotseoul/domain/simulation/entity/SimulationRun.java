@@ -43,7 +43,7 @@ public class SimulationRun {
     @Column(name = "completed_at")
     private Instant completedAt;
 
-    protected SimulationRun() {
+    public SimulationRun() {
     }
 
     public Long getSimulationRunId() {

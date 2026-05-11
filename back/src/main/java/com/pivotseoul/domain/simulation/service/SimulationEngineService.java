@@ -5,9 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pivotseoul.domain.ai.service.AiGatewayService;
 import com.pivotseoul.domain.simulation.dto.RunSimulationRequest;
 import com.pivotseoul.domain.simulation.dto.RunSimulationResponse;
+import com.pivotseoul.domain.simulation.entity.SimulationRun;
+import com.pivotseoul.domain.simulation.repository.SimulationRunRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -17,24 +21,45 @@ public class SimulationEngineService {
 
     private final AiGatewayService aiGatewayService;
     private final ObjectMapper objectMapper;
+    private final SimulationRunRepository simulationRunRepository;
+    private final CalculationLogService calculationLogService;
 
     public SimulationEngineService(
             AiGatewayService aiGatewayService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            SimulationRunRepository simulationRunRepository,
+            CalculationLogService calculationLogService) {
         this.aiGatewayService = aiGatewayService;
         this.objectMapper = objectMapper;
+        this.simulationRunRepository = simulationRunRepository;
+        this.calculationLogService = calculationLogService;
     }
 
     public ResponseEntity<RunSimulationResponse> runSimulation(
             String sessionId,
             RunSimulationRequest request) {
+        Long numericSessionId = parseSessionId(sessionId);
+
+        SimulationRun simulationRun = createRunningSimulationRun(numericSessionId);
         JsonNode aiRequestBody = objectMapper.valueToTree(request);
+
         ResponseEntity<JsonNode> aiResponse = aiGatewayService.housingAnalyze(aiRequestBody);
         JsonNode aiResult = aiResponse.getBody();
 
         boolean success = aiResponse.getStatusCode().is2xxSuccessful();
 
         if (!success) {
+            simulationRun.setRunStatus("FAILED");
+            simulationRun.setCompletedAt(Instant.now());
+            simulationRunRepository.save(simulationRun);
+
+            calculationLogService.saveFailureLog(
+                    simulationRun.getSimulationRunId(),
+                    aiRequestBody,
+                    aiResult,
+                    extractText(aiResult, "error", "FASTAPI_ERROR"),
+                    extractText(aiResult, "detail", "FastAPI request failed"));
+
             RunSimulationResponse failedResponse = new RunSimulationResponse(
                     sessionId,
                     "FAILED",
@@ -53,6 +78,16 @@ public class SimulationEngineService {
         Double rir = extractDouble(aiResult, "rir", null);
         Boolean isRedZone = extractBoolean(aiResult, "is_red_zone", false);
 
+        simulationRun.setRunStatus("COMPLETED");
+        simulationRun.setTotalConfidenceScore(BigDecimal.valueOf(confidenceScore));
+        simulationRun.setCompletedAt(Instant.now());
+        simulationRunRepository.save(simulationRun);
+
+        calculationLogService.saveSuccessLog(
+                simulationRun.getSimulationRunId(),
+                aiRequestBody,
+                aiResult);
+
         RunSimulationResponse.ThresholdResultItem housingThreshold = new RunSimulationResponse.ThresholdResultItem(
                 "HOUSING",
                 rir,
@@ -70,6 +105,26 @@ public class SimulationEngineService {
                 aiResult);
 
         return ResponseEntity.status(aiResponse.getStatusCode()).body(response);
+    }
+
+    private SimulationRun createRunningSimulationRun(Long sessionId) {
+        SimulationRun simulationRun = new SimulationRun();
+        simulationRun.setSessionId(sessionId);
+        simulationRun.setRunStatus("RUNNING");
+        simulationRun.setCalculationEngineVersion("SPRING_ENGINE_V1");
+        simulationRun.setAiPipelineVersion("FASTAPI_HOUSING_V1");
+        simulationRun.setModelVersion("RULE_BASED_V1");
+        simulationRun.setStartedAt(Instant.now());
+
+        return simulationRunRepository.save(simulationRun);
+    }
+
+    private Long parseSessionId(String sessionId) {
+        try {
+            return Long.parseLong(sessionId);
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
     }
 
     private String extractText(JsonNode node, String fieldName, String defaultValue) {
