@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
@@ -19,17 +20,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Spring → FastAPI 연결을 담당하는 AI 게이트웨이 서비스입니다.
- *
- * <p>역할 분리:
- * <ul>
- *   <li>Spring: 인증, 입력 검증, 영속화, API 게이트웨이 경계</li>
- *   <li>FastAPI: 주거/커리어/보육/노년/정책/RAG/LLM 등 계산 파이프라인</li>
- * </ul>
- *
- * <p>현재는 FastAPI JSON을 그대로 통과시키는 얇은 프록시입니다.
- * 나중에 "시뮬레이션 실행"을 완성할 때는 domain/simulation 서비스가 이 클래스를 호출하고,
- * 응답 JSON을 DTO/Entity로 검증·저장한 뒤 사용자 조회 API로 노출하면 됩니다.
+ * FastAPI(lifePivot_) 기능 모듈로 HTTP 프록시.
+ * Spring은 요청 검증·응답 표준화·영속성 경계를 유지하고,
+ * 실제 계산은 FastAPI 업스트림에 위임한다.
  */
 @Service
 public class AiGatewayService {
@@ -44,7 +37,6 @@ public class AiGatewayService {
             @Qualifier("aiRestTemplate") RestTemplate aiRestTemplate,
             ObjectMapper objectMapper,
             @Value("${pivotseoul.ai.fastapi-base-url:http://127.0.0.1:8000}") String fastApiBaseUrl) {
-
         this.aiRestTemplate = aiRestTemplate;
         this.objectMapper = objectMapper;
         this.fastApiBaseUrl = trimTrailingSlash(fastApiBaseUrl);
@@ -54,6 +46,7 @@ public class AiGatewayService {
         if (url == null || url.isEmpty()) {
             return "http://127.0.0.1:8000";
         }
+
         return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
 
@@ -69,10 +62,18 @@ public class AiGatewayService {
     public ResponseEntity<JsonNode> postJson(String fastApiPath, JsonNode body) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+
         JsonNode payload = body != null ? body : objectMapper.createObjectNode();
         HttpEntity<JsonNode> entity = new HttpEntity<>(payload, headers);
+
         try {
-            return aiRestTemplate.exchange(url(fastApiPath), HttpMethod.POST, entity, JsonNode.class);
+            return aiRestTemplate.exchange(
+                    url(fastApiPath),
+                    HttpMethod.POST,
+                    entity,
+                    JsonNode.class);
+        } catch (HttpStatusCodeException e) {
+            return upstreamError(e);
         } catch (ResourceAccessException e) {
             return unreachable(e);
         }
@@ -81,7 +82,13 @@ public class AiGatewayService {
     /** GET 프록시 공통 처리. 상태 조회/데이터 소스 조회처럼 본문이 없는 호출에 사용합니다. */
     public ResponseEntity<JsonNode> getJson(String fastApiPath) {
         try {
-            return aiRestTemplate.exchange(url(fastApiPath), HttpMethod.GET, null, JsonNode.class);
+            return aiRestTemplate.exchange(
+                    url(fastApiPath),
+                    HttpMethod.GET,
+                    null,
+                    JsonNode.class);
+        } catch (HttpStatusCodeException e) {
+            return upstreamError(e);
         } catch (ResourceAccessException e) {
             return unreachable(e);
         }
@@ -95,22 +102,39 @@ public class AiGatewayService {
         err.put("error", "FASTAPI_UNREACHABLE");
         err.put("detail", e.getMessage());
         err.put("upstream", fastApiBaseUrl);
+
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(err);
     }
 
-    /** 게이트웨이 메타 정보와 FastAPI {@code /health} 가용성을 함께 반환합니다. */
+    private ResponseEntity<JsonNode> upstreamError(HttpStatusCodeException e) {
+        ObjectNode err = objectMapper.createObjectNode();
+        err.put("error", "FASTAPI_ERROR");
+        err.put("status", e.getStatusCode().value());
+        err.put("detail", e.getResponseBodyAsString());
+        err.put("upstream", fastApiBaseUrl);
+
+        return ResponseEntity.status(e.getStatusCode()).body(err);
+    }
+
+    /**
+     * Gateway 상태와 FastAPI health 상태를 확인한다.
+     */
     public Map<String, Object> bridgeStatus() {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("role", "gateway");
         m.put("fastapiBaseUrl", fastApiBaseUrl);
         m.put("pipelines", "fastapi/lifePivot_/app/modules/*/pipelines");
+
         try {
-            ResponseEntity<String> health = aiRestTemplate.getForEntity(url("/health"), String.class);
+            ResponseEntity<String> health = aiRestTemplate.getForEntity(
+                    url("/health"),
+                    String.class);
             m.put("fastapiHealthHttpStatus", health.getStatusCode().value());
         } catch (Exception e) {
             m.put("fastapiHealthHttpStatus", "down");
             m.put("fastapiHealthError", e.getMessage());
         }
+
         return m;
     }
 
