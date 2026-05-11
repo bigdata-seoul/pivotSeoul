@@ -1,4 +1,4 @@
-import { fetchJson, postJson } from './http';
+import { fetchJson } from './http';
 import type { ScenarioConditions } from '../context/PivotContext';
 
 export type RecommendationPriority = 'high' | 'medium';
@@ -110,11 +110,10 @@ function toResultRecommendation(item: SpringRecommendationResponse): ResultRecom
 }
 
 export function fetchRecommendations(request: RecommendationRequest): Promise<RecommendationResponse> {
-  return postJson<{ recommendations: SpringRecommendationResponse[] }, RecommendationRequest>('/simulation/recommendations', request)
-    .then((response) => ({ recommendations: response.recommendations.map(toResultRecommendation) }));
+  return Promise.resolve({ recommendations: buildMockRecommendations(request.scenarioA, request.scenarioB) });
 }
 
 export function fetchResultRecommendations(scenarioResultId: number): Promise<ResultRecommendation[]> {
-  return fetchJson<SpringRecommendationResponse[]>(`/simulation/results/${scenarioResultId}/recommendations`)
+  return fetchJson<SpringRecommendationResponse[]>(`/simulation-results/${scenarioResultId}/recovery-levers`)
     .then((recommendations) => recommendations.map(toResultRecommendation));
 }

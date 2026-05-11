@@ -1,6 +1,6 @@
 import { fetchJson } from './http';
 import type { DatasetStatus } from './dataApi';
-import { fetchValidationResults, getMockDatasetStatuses, type SpringValidationResultResponse } from './dataApi';
+import { getMockDatasetStatuses, type SpringValidationResultResponse } from './dataApi';
 
 export type ServiceStatus = 'normal' | 'warning' | 'error';
 export type LogLevel = 'error' | 'warn' | 'info' | 'success';
@@ -146,41 +146,90 @@ function toValidationLog(result: SpringValidationResultResponse): ValidationLog 
 }
 
 export function fetchAdminSummary(): Promise<AdminDashboardSummary> {
-  return fetchJson<AdminDashboardSummary>('/admin/summary');
+  return fetchJson<AdminDashboardSummary>('/admin/dashboard/summary');
 }
 
 export function fetchAdminDashboard(): Promise<AdminDashboardResponse> {
-  return fetchJson<AdminDashboardResponse>('/admin/dashboard')
-    .then((dashboard) => ({
-      summary: dashboard.summary,
-      serviceStatuses: dashboard.serviceStatuses.map(toServiceMetric),
-      aiStatuses: dashboard.aiStatuses.map(toAiStatus),
-      dataOperation: toDataOperationStatus(dashboard.dataOperation),
-      promptRecommendation: toRecommendationStatus(dashboard.promptRecommendation),
+  return fetchAdminSummary()
+    .then((summary) => ({
+      summary,
+      serviceStatuses: getMockServiceMetrics(),
+      aiStatuses: getMockAiStatuses(),
+      dataOperation: toDataOperationStatus({
+        status: 'normal',
+        datasetCount: getMockDatasetStatuses().length,
+        validationWarningCount: 0,
+        lastValidatedAt: '',
+      }),
+      promptRecommendation: toRecommendationStatus({
+        status: 'normal',
+        promptVersion: '-',
+        recommendationVersion: '-',
+        updatedAt: '',
+      }),
     }));
 }
 
 export function fetchServiceStatuses(): Promise<ServiceMetric[]> {
-  return fetchJson<ServiceMetric[]>('/admin/services')
-    .then((metrics) => metrics.map(toServiceMetric));
+  return Promise.resolve(getMockServiceMetrics());
 }
 
 export function fetchAiStatuses(): Promise<AiServiceStatus[]> {
-  return fetchJson<AiServiceStatus[]>('/admin/ai/status')
-    .then((statuses) => statuses.map(toAiStatus));
+  return Promise.resolve(getMockAiStatuses());
 }
 
 export function fetchDataOperationStatus(): Promise<DataOperationStatus> {
-  return fetchJson<DataOperationStatus>('/admin/data/status')
-    .then(toDataOperationStatus);
+  return Promise.resolve(toDataOperationStatus({
+    status: 'normal',
+    datasetCount: getMockDatasetStatuses().length,
+    validationWarningCount: 0,
+    lastValidatedAt: '',
+  }));
 }
 
 export function fetchRecommendationStatus(): Promise<RecommendationStatus> {
-  return fetchJson<RecommendationStatus>('/admin/recommendations/status')
-    .then(toRecommendationStatus);
+  return Promise.resolve(toRecommendationStatus({
+    status: 'normal',
+    promptVersion: '-',
+    recommendationVersion: '-',
+    updatedAt: '',
+  }));
+}
+
+export function fetchAdminDatasets(): Promise<DatasetStatus[]> {
+  return fetchJson<DatasetStatus[]>('/admin/datasets');
+}
+
+export function createAdminDataset(request: Partial<DatasetStatus>): Promise<DatasetStatus> {
+  return fetchJson<DatasetStatus>('/admin/datasets', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+export function updateAdminDataset(datasetId: number | string, request: Partial<DatasetStatus>): Promise<DatasetStatus> {
+  return fetchJson<DatasetStatus>(`/admin/datasets/${datasetId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(request),
+  });
+}
+
+export function validateAdminDataset(datasetId: number | string): Promise<SpringValidationResultResponse[]> {
+  return fetchJson<SpringValidationResultResponse[]>(`/admin/datasets/${datasetId}/validate`, {
+    method: 'POST',
+  });
+}
+
+export function fetchApiErrorLogs(): Promise<ValidationLog[]> {
+  return fetchJson<SpringValidationResultResponse[]>('/admin/logs/api-errors')
+    .then((results) => results.map(toValidationLog));
+}
+
+export function fetchAiAnomalyLogs(): Promise<ValidationLog[]> {
+  return fetchJson<SpringValidationResultResponse[]>('/admin/logs/ai-anomalies')
+    .then((results) => results.map(toValidationLog));
 }
 
 export function fetchValidationLogs(): Promise<ValidationLog[]> {
-  return fetchValidationResults()
-    .then((results) => results.map(toValidationLog));
+  return fetchApiErrorLogs();
 }

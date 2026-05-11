@@ -130,16 +130,19 @@ function toDataSource(source: SpringDataSourceResponse): DataSource {
 }
 
 export function fetchDatasetStatuses(): Promise<DatasetStatus[]> {
-  return fetchJson<SpringDatasetResponse[]>('/data/datasets')
+  return fetchJson<SpringDatasetResponse[]>('/datasets')
     .then((datasets) => datasets.map(toDatasetStatus));
 }
 
+export function fetchDatasetStatus(datasetId: number | string): Promise<DatasetStatus> {
+  return fetchJson<SpringDatasetResponse>(`/datasets/${datasetId}`)
+    .then(toDatasetStatus);
+}
+
 export function fetchDataSources(): Promise<DataSource[]> {
-  return fetchJson<SpringDataSourceResponse[]>('/data/sources')
-    .then((sources) => sources.map(toDataSource));
+  return Promise.resolve(getMockResultDataSources());
 }
 
 export function fetchValidationResults(dataSnapshotId?: number): Promise<SpringValidationResultResponse[]> {
-  const path = dataSnapshotId == null ? '/data/validations' : `/data/validations/${dataSnapshotId}`;
-  return fetchJson<SpringValidationResultResponse[]>(path);
+  return Promise.resolve([]);
 }

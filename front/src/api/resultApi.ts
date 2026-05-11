@@ -153,20 +153,35 @@ function toWeeklyAction(action: SpringWeeklyActionResponse): WeeklyAction {
 }
 
 export function fetchResultDetail(scenarioResultId: number): Promise<SpringSimulationResultResponse> {
-  return fetchJson<SpringSimulationResultResponse>(`/simulation/results/${scenarioResultId}`);
+  return fetchJson<SpringSimulationResultResponse>(`/simulation-results/${scenarioResultId}`);
 }
 
 export function fetchResultSummary(scenarioResultId: number): Promise<SpringResultSummaryResponse> {
-  return fetchJson<SpringResultSummaryResponse>(`/simulation/results/${scenarioResultId}/summary`);
+  return fetchJson<SpringResultSummaryResponse>(`/simulation-results/${scenarioResultId}/summary`);
+}
+
+export function fetchResultComparison(scenarioResultId: number): Promise<unknown> {
+  return fetchJson<unknown>(`/simulation-results/${scenarioResultId}/comparison`);
+}
+
+export function fetchResultEvidence(scenarioResultId: number): Promise<SpringEvidenceResponse[]> {
+  return fetchJson<SpringEvidenceResponse[]>(`/simulation-results/${scenarioResultId}/evidence`);
+}
+
+export function fetchResultThresholds(scenarioResultId: number): Promise<SpringThresholdResultResponse[]> {
+  return fetchJson<SpringThresholdResultResponse[]>(`/simulation-results/${scenarioResultId}/thresholds`);
+}
+
+export function fetchResultRedZones(scenarioResultId: number): Promise<SpringThresholdResultResponse[]> {
+  return fetchJson<SpringThresholdResultResponse[]>(`/simulation-results/${scenarioResultId}/red-zones`);
 }
 
 export function fetchResultHistory(): Promise<ResultHistoryItem[]> {
-  return fetchJson<SpringResultSummaryResponse[]>('/simulation/results')
-    .then((results) => results.map(toHistoryItem));
+  return Promise.resolve([]);
 }
 
 export function fetchWeeklyActions(scenarioResultId: number): Promise<WeeklyAction[]> {
-  return fetchJson<SpringWeeklyActionResponse[]>(`/simulation/results/${scenarioResultId}/weekly-actions`)
+  return fetchJson<SpringWeeklyActionResponse[]>(`/simulation-results/${scenarioResultId}/weekly-actions`)
     .then((actions) => actions.map(toWeeklyAction));
 }
 
