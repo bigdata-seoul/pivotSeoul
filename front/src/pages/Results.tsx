@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Shield, AlertTriangle, XCircle, TrendingUp, TrendingDown,
   Home, Clock, Baby, DollarSign, MapPin, FileText,
@@ -47,14 +47,42 @@ const dataSources = [
   { label: '노후 현금흐름 모델', source: '금융감독원', year: '2024' },
 ];
 
+// ===== Spring run 응답 읽기 섹션 =====
+// /api/simulation/runs 응답에서 UI에 필요한 필드만 안전하게 꺼냅니다.
+function readStringField(value: unknown, field: string): string | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const candidate = (value as Record<string, unknown>)[field];
+  return typeof candidate === 'string' ? candidate : undefined;
+}
+
+function readStringArrayField(value: unknown, field: string): string[] {
+  if (!value || typeof value !== 'object') return [];
+  const candidate = (value as Record<string, unknown>)[field];
+  return Array.isArray(candidate) ? candidate.filter((v): v is string => typeof v === 'string') : [];
+}
+
 export function Results() {
-  const { profile, scenarioA, scenarioB, calculateRisk } = usePivot();
+  const { profile, scenarioA, scenarioB, calculateRisk, aiAnalysis, runAiAnalysis } = usePivot();
   const { c, isDark } = useTheme();
   const [checkedItems, setCheckedItems] = useState<number[]>([3]);
   const [activeTab, setActiveTab] = useState<'monthly' | 'cumulative'>('monthly');
 
   const riskA = calculateRisk(scenarioA, profile.monthlyIncome);
   const riskB = calculateRisk(scenarioB, profile.monthlyIncome);
+
+  useEffect(() => {
+    void runAiAnalysis();
+  }, [runAiAnalysis]);
+
+  // ===== AI 연결 상태 섹션 =====
+  // Spring run 결과에서 FastAPI health, 사용 모듈, LLM 해설을 추출합니다.
+  const aiExplanation = readStringField(aiAnalysis.explanation, 'final_explanation');
+  const modulesUsed = Array.from(new Set([
+    ...readStringArrayField(aiAnalysis.scenarioA, 'modules_used'),
+    ...readStringArrayField(aiAnalysis.scenarioB, 'modules_used'),
+  ]));
+  const gatewayHealth = aiAnalysis.gatewayStatus?.fastapiHealthHttpStatus;
+  const backendRunStatus = aiAnalysis.backendRun?.runStatus;
 
   const cashFlowA = generateCashFlow(profile.monthlyIncome, scenarioA.monthlyHousing, scenarioA.childcareCost, scenarioA.applyPolicy, scenarioA.extraIncome);
   const cashFlowB = generateCashFlow(profile.monthlyIncome, scenarioB.monthlyHousing, scenarioB.childcareCost, scenarioB.applyPolicy, scenarioB.extraIncome);
@@ -126,7 +154,50 @@ export function Results() {
   return (
     <div className="h-full overflow-y-auto scrollbar-none p-4 md:p-6 space-y-4 md:space-y-5">
 
-      {/* ── Top summary row ── */}
+      {/* ===== 설명 섹션: 프론트 → Spring 운영 API → AI 게이트웨이 → FastAPI 전체 연결 상태 ===== */}
+      <div className="rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-3 md:gap-4"
+        style={{ background: c.card, border: `1px solid ${c.cardBorder}`, boxShadow: c.cardShadow }}>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: aiAnalysis.status === 'error' ? c.errorBg : c.primaryBg }}>
+          <RefreshCw size={16} className={aiAnalysis.status === 'loading' ? 'animate-spin' : ''}
+            style={{ color: aiAnalysis.status === 'error' ? c.error : c.primary }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span style={{ color: c.text, fontSize: '0.86rem', fontWeight: 700 }}>운영 시뮬레이션 → AI 파이프라인 연결</span>
+            <span className="px-2 py-0.5 rounded-full"
+              style={{ background: aiAnalysis.status === 'error' ? c.errorBg : c.successBg, color: aiAnalysis.status === 'error' ? c.error : c.success, fontSize: '0.66rem', border: `1px solid ${aiAnalysis.status === 'error' ? c.errorBorder : c.successBorder}` }}>
+              {aiAnalysis.status === 'loading' ? '연결 중' : aiAnalysis.status === 'error' ? '부분 실패' : aiAnalysis.status === 'success' ? '연결 완료' : '대기'}
+            </span>
+            {gatewayHealth !== undefined && (
+              <span style={{ color: c.textMuted, fontSize: '0.68rem' }}>FastAPI health: {String(gatewayHealth)}</span>
+            )}
+          </div>
+          <p style={{ color: c.textSec, fontSize: '0.74rem', marginTop: '3px' }}>
+            결과 화면 진입 시 프론트는 Spring `/api/simulation/runs`만 호출하고, Spring이 내부에서 `/api/ai/*` → FastAPI `/api/v1/*` 전체 모듈을 연결합니다.
+          </p>
+          {backendRunStatus && (
+            <p style={{ color: c.textMuted, fontSize: '0.68rem', marginTop: '2px' }}>Spring run 상태: {backendRunStatus}</p>
+          )}
+          {modulesUsed.length > 0 && (
+            <p style={{ color: c.textMuted, fontSize: '0.68rem', marginTop: '2px' }}>사용 모듈: {modulesUsed.join(', ')}</p>
+          )}
+          {aiExplanation && (
+            <p style={{ color: c.textMuted, fontSize: '0.68rem', marginTop: '2px' }}>LLM 해설: {aiExplanation}</p>
+          )}
+          {aiAnalysis.error && (
+            <p style={{ color: c.error, fontSize: '0.68rem', marginTop: '2px' }}>{aiAnalysis.error}</p>
+          )}
+        </div>
+        <button onClick={() => void runAiAnalysis()}
+          className="px-3 py-2 rounded-xl font-medium transition-all shrink-0"
+          style={{ background: c.primaryBg, color: c.primary, border: `1px solid ${c.primaryBorder}`, fontSize: '0.75rem' }}>
+          다시 연결
+        </button>
+      </div>
+
+      {/* ===== 결과 설명 섹션: 아직 점수/차트는 로컬 fallback 계산으로 표시 ===== */}
+      {/* ── 상단 요약 영역 ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
           { info: statusA, risk: riskA, scenario: scenarioA, label: 'A' },
@@ -149,7 +220,7 @@ export function Results() {
           </div>
         ))}
 
-        {/* Score delta */}
+        {/* 점수 차이 */}
         <div className="rounded-2xl p-4 flex items-center gap-3"
           style={{ background: riskB.overallScore < riskA.overallScore ? c.successBg : c.errorBg, border: `1px solid ${riskB.overallScore < riskA.overallScore ? c.successBorder : c.errorBorder}`, backdropFilter: 'blur(12px)' }}>
           <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
@@ -173,10 +244,10 @@ export function Results() {
         </div>
       </div>
 
-      {/* ── Main chart row ── */}
+      {/* ── 메인 차트 영역 ── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
-        {/* A/B Cash Flow Chart */}
+        {/* A/B 현금 흐름 차트 */}
         <div className="lg:col-span-3 rounded-2xl p-4 md:p-5"
           style={{ background: c.card, border: `1px solid ${c.cardBorder}`, boxShadow: c.cardShadow }}>
           <div className="flex items-center justify-between mb-4">
@@ -243,9 +314,9 @@ export function Results() {
           </div>
         </div>
 
-        {/* Right stack */}
+        {/* 오른쪽 묶음 */}
         <div className="lg:col-span-2 flex flex-col gap-4">
-          {/* Gauge pair */}
+          {/* 게이지 쌍 */}
           <div className="rounded-2xl p-4 flex items-center justify-around"
             style={{ background: c.card, border: `1px solid ${c.cardBorder}`, boxShadow: c.cardShadow }}>
             {[
@@ -260,7 +331,7 @@ export function Results() {
             ))}
           </div>
 
-          {/* Monthly breakdown */}
+          {/* 월별 상세 */}
           <div className="rounded-2xl p-4 flex-1"
             style={{ background: c.card, border: `1px solid ${c.cardBorder}`, boxShadow: c.cardShadow }}>
             <span style={{ color: c.textSec, fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: '12px' }}>
@@ -280,7 +351,7 @@ export function Results() {
         </div>
       </div>
 
-      {/* ── Red Zone Cards ── */}
+      {/* ── 위험 구간 카드 ── */}
       <div>
         <div className="flex items-center gap-2 mb-3">
           <AlertTriangle size={13} style={{ color: c.error }} />
@@ -332,10 +403,10 @@ export function Results() {
         </div>
       </div>
 
-      {/* ── Bottom row ── */}
+      {/* ── 하단 영역 ── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
-        {/* Recovery levers */}
+        {/* 회복 레버 */}
         <div className="lg:col-span-3 rounded-2xl overflow-hidden"
           style={{ background: c.card, border: `1px solid ${c.cardBorder}`, boxShadow: c.cardShadow }}>
           <div className="px-5 py-3.5 border-b flex items-center gap-2" style={{ borderColor: c.border }}>
@@ -368,9 +439,9 @@ export function Results() {
           ))}
         </div>
 
-        {/* Right column */}
+        {/* 오른쪽 컬럼 */}
         <div className="lg:col-span-2 flex flex-col gap-4">
-          {/* Checklist */}
+          {/* 체크리스트 */}
           <div className="rounded-2xl p-4 md:p-5"
             style={{ background: c.card, border: `1px solid ${c.cardBorder}`, boxShadow: c.cardShadow }}>
             <div className="flex items-center gap-2 mb-3">
@@ -393,14 +464,14 @@ export function Results() {
                     <span style={{ color: isDone ? c.textMuted : c.textSec, fontSize: '0.78rem', textDecoration: isDone ? 'line-through' : 'none', flex: 1 }}>
                       {item.text}
                     </span>
-                    <span style={{ color: c.textMuted, fontSize: '0.62rem', shrink: 0 }}>{item.link}</span>
+                    <span style={{ color: c.textMuted, fontSize: '0.62rem', flexShrink: 0 }}>{item.link}</span>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* District radar */}
+          {/* 자치구 레이더 */}
           <div className="rounded-2xl p-4 flex-1"
             style={{ background: c.card, border: `1px solid ${c.cardBorder}`, boxShadow: c.cardShadow }}>
             <div className="flex items-center gap-2 mb-2">
@@ -427,7 +498,7 @@ export function Results() {
         </div>
       </div>
 
-      {/* Data sources */}
+      {/* 데이터 출처 */}
       <div className="rounded-2xl p-4"
         style={{ background: isDark ? 'rgba(15,23,42,0.5)' : '#F8FAFC', border: `1px solid ${c.borderSoft}` }}>
         <div className="flex items-center gap-2 mb-3">
