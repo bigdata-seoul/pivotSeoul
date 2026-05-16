@@ -1,5 +1,9 @@
 .DS_Store
 
+# Environment secrets — never commit
+.env
+*.env.local
+
 node_modules/
 **/node_modules/
 .next/
