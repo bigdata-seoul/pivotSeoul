@@ -18,6 +18,7 @@ services:
       - internal
 
   fastapi:
+    image: ${FASTAPI_IMAGE:-ghcr.io/bigdata-seoul/pivotseoul-fastapi:latest}
     build:
       context: ./fastapi
     container_name: pivotseoul-fastapi
@@ -34,8 +35,10 @@ services:
       retries: 5
 
   back:
+    image: ${BACK_IMAGE:-ghcr.io/bigdata-seoul/pivotseoul-back:latest}
     build:
-      context: ./back
+      context: .
+      dockerfile: back/Dockerfile
     container_name: pivotseoul-back
     restart: unless-stopped
     depends_on:
@@ -60,6 +63,7 @@ services:
       retries: 10
 
   front:
+    image: ${FRONT_IMAGE:-ghcr.io/bigdata-seoul/pivotseoul-front:latest}
     build:
       context: ./front
     container_name: pivotseoul-front
