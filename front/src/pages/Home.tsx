@@ -81,6 +81,12 @@ export function Home() {
     return { bg: c.errorBg, border: c.errorBorder, text: c.error };
   };
 
+  const getStatStyle = (status: 'safe' | 'warning' | 'danger') => {
+    if (status === 'safe') return { color: c.success };
+    if (status === 'warning') return { color: c.warning };
+    return { color: c.error };
+  };
+
   return (
     <div className="h-full overflow-y-auto scrollbar-none p-4 md:p-6 space-y-4 md:space-y-6">
 
