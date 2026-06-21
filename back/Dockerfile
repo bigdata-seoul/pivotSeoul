@@ -1,0 +1,21 @@
+FROM eclipse-temurin:17-jdk-alpine AS build
+WORKDIR /workspace
+
+COPY gradlew gradlew.bat ./
+COPY gradle gradle
+COPY build.gradle ./
+COPY src src
+RUN chmod +x gradlew && ./gradlew bootJar --no-daemon -x test
+
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+
+RUN addgroup -S pivotseoul && adduser -S pivotseoul -G pivotseoul
+
+COPY --from=build /workspace/build/libs/*.jar app.jar
+RUN chown pivotseoul:pivotseoul app.jar
+
+USER pivotseoul
+
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "-Dspring.profiles.active=prod", "app.jar"]
