@@ -1,0 +1,47 @@
+.DS_Store
+
+# Environment secrets — never commit
+.env
+*.env.local
+
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+
+.expo/
+dist/
+web-build/
+
+.gradle/
+build/
+out/
+
+.idea/
+*.iml
+
+# Gradle `eclipse` task — contains machine-specific paths; regenerate with `./gradlew :back:eclipse`
+back/.classpath
+back/.project
+back/.settings/
+
+# Python / FastAPI
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Generated backend artifacts
+back/bin/
+
+# Local AI/FastAPI datasets. Keep manifests/docs in source, not raw bulk data.
+fastapi/lifePivot_/data/*
+!fastapi/lifePivot_/data/.gitkeep
+!fastapi/lifePivot_/data/README.md
+
+# Figma/imported image drops should be stored externally unless actively referenced.
+front/src/imports/
